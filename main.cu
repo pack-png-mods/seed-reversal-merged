@@ -1,4 +1,4 @@
-#define __JETBRAINS_IDE__
+//#define __JETBRAINS_IDE__
 // IDE indexing
 #ifdef __JETBRAINS_IDE__
 #define __host__
