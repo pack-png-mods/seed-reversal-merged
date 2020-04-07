@@ -456,6 +456,17 @@ int main(int argc, char *argv[]) {
 
     }
 
+    // for now no multithreading here, this loop only execute when arraysize is changed
+    for (int j = 0; j < arraySize; ++j) {
+        int usedTrees = 0;
+        if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, (X_TRANSLATE+8) + 16)) {
+            fprintf(out_file, "%lld\n", tempStorage[j]);
+        }
+    }
+
+    fflush(out_file);
+    free(tempStorage);    
+
     fclose(out_file);
 
 }
