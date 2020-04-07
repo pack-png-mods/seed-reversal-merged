@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
-project(seed_tester_native)
+project(tree_lattice)
 
 set(CMAKE_CXX_STANDARD 14)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-add_executable(seed_tester_native main.cpp random.cpp generator.cpp)
+
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    message(STATUS "CUDA support")
+else()
+    message(STATUS "No CUDA support")
+endif()
+
+add_executable(tree_lattice main.cu random.cpp generator.cpp)

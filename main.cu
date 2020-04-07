@@ -1,4 +1,4 @@
-
+#define __JETBRAINS_IDE__
 // IDE indexing
 #ifdef __JETBRAINS_IDE__
 #define __host__
@@ -16,7 +16,7 @@
 #endif
 
 
-#include "generator.h"
+
 #include <stdint.h>
 #include <memory.h>
 #include <stdio.h>
@@ -108,31 +108,24 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 
 
 
-#define TREE_X 4
-#define TREE_Z 3
-#define TREE_HEIGHT 6
+#define WATERFALL_X 16
+#define WATERFALL_Y 76
+#define WATERFALL_Z 10
 
-#define OTHER_TREE_COUNT 3
+#define TREE_X (WATERFALL_X - 5)
+#define TREE_Z (WATERFALL_Z - 8)
+#define TREE_HEIGHT 5
+
+#define OTHER_TREE_COUNT 1
 __device__ inline int getTreeHeight(int x, int z) {
     if (x == TREE_X && z == TREE_Z)
         return TREE_HEIGHT;
 
-    if (x == 1 && z == 13)
+    if (x == WATERFALL_X - 3 && z == WATERFALL_Z + 3)
         return 5;
-
-    if (x == 6 && z == 12)
-        return 6;
-
-    if (x == 14 && z == 7) {
-        return 5;
-    }
 
     return 0;
 }
-
-#define WATERFALL_X 9
-#define WATERFALL_Y 76
-#define WATERFALL_Z 1
 
 
 
@@ -248,6 +241,9 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
                 }
 
                 if (treesMatched == OTHER_TREE_COUNT + 1) {
+                    // ignore waterfall (x coords 0 to 2)
+
+                    /*
                     Random before_rest = rand;
                     // yellow flowers
                     advance_774(rand);
@@ -277,10 +273,11 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
                         any_population_matches |= waterfall_matches;
                     }
                     rand = before_rest;
+                     */
                 }
             }
 
-            this_res &= any_population_matches;
+            this_res &= treesMatched >= OTHER_TREE_COUNT + 1;
 
             if (this_res) {
                 Random start_chunk_rand = start;
@@ -307,7 +304,7 @@ void setup_gpu_node(GPU_Node* node, int gpu) {
     CHECK_GPU_ERR(cudaSetDevice(gpu));
     node->GPU = gpu;
     CHECK_GPU_ERR(cudaMallocManaged(&node->num_seeds, sizeof(*node->num_seeds)));
-    CHECK_GPU_ERR(cudaMallocManaged(&node->seeds, (1LL << 20))); // approx 1MB
+    CHECK_GPU_ERR(cudaMallocManaged(&node->seeds, (sizeof(Random)*WORK_UNIT_SIZE)));
     CHECK_GPU_ERR(cudaMallocManaged(&node->num_tree_starts, sizeof(*node->num_tree_starts)));
     CHECK_GPU_ERR(cudaMallocManaged(&node->tree_starts, (sizeof(Random)*WORK_UNIT_SIZE)));
 }
@@ -350,6 +347,7 @@ void calculate_search_backs(int GPU_COUNT) {
     }
 }
 
+#include "generator.h"
 
 #undef int
 int main(int argc, char *argv[]) {
@@ -385,6 +383,8 @@ int main(int argc, char *argv[]) {
     ulong count = 0;
     clock_t lastIteration = clock();
     clock_t startTime = clock();
+    long long *tempStorage=NULL;
+    ulong arraySize=0;
     for (ulong offset = 0; offset < TOTAL_WORK_SIZE;) {
 
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
@@ -406,19 +406,30 @@ int main(int argc, char *argv[]) {
             *nodes[gpu_index].num_seeds = 0;
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
+        // for now no multithreading here, this loop only execute when arraysize is changed
+        for (int j = 0; j < arraySize; ++j) {
+            int usedTrees = 0;
+            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, (X_TRANSLATE+8) + 16)) {
+                fprintf(out_file, "%lld\n", tempStorage[j]);
+            }
+        }
 
+        fflush(out_file); // its okay to flush something opened without writing
+        free(tempStorage);    // its okay to free NULL
+
+
+        tempStorage = (long long*) malloc( sizeof(long long));
+        arraySize=0;
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
-
+            tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
-                int64_t seed=nodes[gpu_index].seeds[i];
-                if (generator::ChunkGenerator::populate(seed)) {
-                    fprintf(out_file, "%lld\n", seed);
-                }
-
+                tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
+                //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
             }
-            fflush(out_file);
+            //fflush(out_file);
+            arraySize+=*nodes[gpu_index].num_seeds;
             count += *nodes[gpu_index].num_seeds;
         }
 
