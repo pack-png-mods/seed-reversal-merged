@@ -40,11 +40,11 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
         int32_t treeX = random.nextInt(16);
         int32_t treeZ = random.nextInt(16);
         int32_t height = random.nextInt(3) + 4;
-        if (!treesFound[0] && treeX == TREE1_X && treeZ == TREE1_Z && height == TREE1_HEIGHT) {
+        if (!treesFound[0] && treeX == waterfallX + TREE1_X && treeZ == TREE1_Z && height == TREE1_HEIGHT) {
             delete[] generator::ChunkGenerator::generateLeafPattern(random);
             foundTreeCount++;
             treesFound[0] = true;
-        } else if (!treesFound[1] && treeX == TREE2_X && treeZ == TREE2_Z && height == TREE2_HEIGHT) {
+        } else if (!treesFound[1] && treeX == waterfallX + TREE2_X && treeZ == TREE2_Z && height == TREE2_HEIGHT) {
             bool *leafPattern = generateLeafPattern(random);
             if (!leafPattern[0] && leafPattern[4]) {
                 foundTreeCount++;
@@ -57,7 +57,6 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
             if (isValidTreeSpot(treeX, treeZ, treesFound[0], treesFound[1], waterfallX))
                 return -1;
         }
-
         if (foundTreeCount == 2)
             return i;
     }
@@ -66,6 +65,7 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
 
 bool generator::ChunkGenerator::populate(int64_t chunkSeed, int *uTrees, int waterfallX)
 {
+    *uTrees = -1;
     random_math::JavaRand random(advance_3759.next(chunkSeed), false);
 
     int32_t maxBaseTreeCount = 12;
