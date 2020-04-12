@@ -273,6 +273,10 @@ void setup_gpu_node(GPU_Node* node, int gpu) {
 }
 
 
+#ifndef GPU_COUNT
+#define GPU_COUNT 1
+#endif
+
 void calculate_search_backs() {
     bool allow_search_back[MAX_TREE_SEARCH_BACK + 1];
     memset(allow_search_back, false, sizeof(allow_search_back));
@@ -315,10 +319,6 @@ void calculate_search_backs() {
 
 #ifndef OFFSET
 #define OFFSET 0
-#endif
-
-#ifndef GPU_COUNT
-#define GPU_COUNT 1
 #endif
 
 int main(int argc, char *argv[]) {
