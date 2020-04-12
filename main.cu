@@ -98,13 +98,13 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 }
 
 // advance
-#define advance(rand, multiplier, addend) ((rand) = ((rand) * (multiplier) + (addend)) & RANDOM_MASK)
-#define advance_830(rand) advance(rand, 0x859D39E832D9LL, 0xE3E2DF5E9196LL)
-#define advance_774(rand) advance(rand, 0xF8D900133F9LL, 0x5738CAC2F85ELL)
-#define advance_387(rand) advance(rand, 0x5FE2BCEF32B5LL, 0xB072B3BF0CBDLL)
-#define advance_16(rand) advance(rand, 0x6DC260740241LL, 0xD0352014D90LL)
-#define advance_m1(rand) advance(rand, 0xDFE05BCB1365LL, 0x615C0E462AA9LL)
-#define advance_m3759(rand) advance(rand, 0x63A9985BE4ADLL, 0xA9AA8DA9BC9BLL)
+#define advance_rng(rand, multiplier, addend) ((rand) = ((rand) * (multiplier) + (addend)) & RANDOM_MASK)
+#define advance_830(rand) advance_rng(rand, 0x859D39E832D9LL, 0xE3E2DF5E9196LL)
+#define advance_774(rand) advance_rng(rand, 0xF8D900133F9LL, 0x5738CAC2F85ELL)
+#define advance_387(rand) advance_rng(rand, 0x5FE2BCEF32B5LL, 0xB072B3BF0CBDLL)
+#define advance_16(rand) advance_rng(rand, 0x6DC260740241LL, 0xD0352014D90LL)
+#define advance_m1(rand) advance_rng(rand, 0xDFE05BCB1365LL, 0x615C0E462AA9LL)
+#define advance_m3759(rand) advance_rng(rand, 0x63A9985BE4ADLL, 0xA9AA8DA9BC9BLL)
 
 
 
@@ -347,9 +347,9 @@ void calculate_search_backs(int GPU_COUNT) {
     }
 }
 
+#undef int
 #include "generator.h"
 
-#undef int
 int main(int argc, char *argv[]) {
 #define int int32_t
     int GPU_COUNT = 1;
@@ -409,7 +409,7 @@ int main(int argc, char *argv[]) {
         // for now no multithreading here, this loop only execute when arraysize is changed
         for (int j = 0; j < arraySize; ++j) {
             int usedTrees = 0;
-            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, (X_TRANSLATE+8) + 16)) {
+            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
                 fprintf(out_file, "%lld\n", tempStorage[j]);
             }
         }
@@ -465,7 +465,7 @@ int main(int argc, char *argv[]) {
     }
 
     fflush(out_file);
-    free(tempStorage);    
+    free(tempStorage);
 
     fclose(out_file);
 
