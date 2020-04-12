@@ -217,63 +217,26 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
 
             bool this_res = true;
 
-            if(random_next_int(&rand, 10) == 0)
+            if (random_next_int(&rand, 10) == 0)
                 continue;
 
-            char generated_tree[16][2];
+            int generated_tree[16];
             memset(generated_tree, 0x00, sizeof(generated_tree));
 
             int treesMatched = 0;
-            bool any_population_matches = false;
             for (int treeAttempt = 0; treeAttempt <= MAX_TREE_ATTEMPTS; treeAttempt++) {
                 int treeX = random_next(&rand, 4);
                 int treeZ = random_next(&rand, 4);
                 int wantedTreeHeight = getTreeHeight(treeX, treeZ);
                 int treeHeight = random_next_int(&rand, 3) + 4;
 
-                char& boolpack = generated_tree[treeX][treeZ / 8];
-                const char mask = 1 << (treeZ % 8);
+                int& boolpack = generated_tree[treeX];
+                const int mask = 1 << (treeZ % 16);
 
                 if (treeHeight == wantedTreeHeight && !(boolpack & mask)) {
                     treesMatched++;
                     boolpack |= mask;
                     advance_16(rand);
-                }
-
-                if (treesMatched == OTHER_TREE_COUNT + 1) {
-                    // ignore waterfall (x coords 0 to 2)
-
-                    /*
-                    Random before_rest = rand;
-                    // yellow flowers
-                    advance_774(rand);
-                    // red flowers
-                    if (random_next(&rand, 1) == 0) {
-                        advance_387(rand);
-                    }
-                    // brown mushroom
-                    if (random_next(&rand, 2) == 0) {
-                        advance_387(rand);
-                    }
-                    // red mushroom
-                    if (random_next(&rand, 3) == 0) {
-                        advance_387(rand);
-                    }
-                    // reeds
-                    advance_830(rand);
-                    // pumpkins
-                    if (random_next(&rand, 5) == 0) {
-                        advance_387(rand);
-                    }
-
-                    for (int i = 0; i < 50; i++) {
-                        bool waterfall_matches = random_next(&rand, 4) == WATERFALL_X;
-                        waterfall_matches &= random_next_int(&rand, random_next_int(&rand, 120) + 8) == WATERFALL_Y;
-                        waterfall_matches &= random_next(&rand, 4) == WATERFALL_Z;
-                        any_population_matches |= waterfall_matches;
-                    }
-                    rand = before_rest;
-                     */
                 }
             }
 
@@ -310,7 +273,7 @@ void setup_gpu_node(GPU_Node* node, int gpu) {
 }
 
 
-void calculate_search_backs(int GPU_COUNT) {
+void calculate_search_backs() {
     bool allow_search_back[MAX_TREE_SEARCH_BACK + 1];
     memset(allow_search_back, false, sizeof(allow_search_back));
 
@@ -350,28 +313,20 @@ void calculate_search_backs(int GPU_COUNT) {
 #undef int
 #include "generator.h"
 
+#ifndef OFFSET
+#define OFFSET 0
+#endif
+
+#ifndef GPU_COUNT
+#define GPU_COUNT 1
+#endif
+
 int main(int argc, char *argv[]) {
 #define int int32_t
-    int GPU_COUNT = 1;
-    for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-') {
-            switch(argv[i][1]) {
-                case 'g':
-                    if(isdigit(argv[i][2])) GPU_COUNT = atoi(argv[i] + 2);
-                    break;
-                default:
-                    printf("Error: Flag not recognized.");
-                    return -1;
-            }
-        } else {
-            printf("Error: Please specify flag before argument.");
-            return -1;
-        }
-    }
     GPU_Node *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
-    printf("Searching %lld total seeds...\n", TOTAL_WORK_SIZE);
+    printf("Searching %ld total seeds...\n", TOTAL_WORK_SIZE);
 
-    calculate_search_backs(GPU_COUNT);
+    calculate_search_backs();
 
     FILE* out_file = fopen("chunk_seeds.txt", "w");
 
@@ -385,7 +340,7 @@ int main(int argc, char *argv[]) {
     clock_t startTime = clock();
     long long *tempStorage=NULL;
     ulong arraySize=0;
-    for (ulong offset = 0; offset < TOTAL_WORK_SIZE;) {
+    for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
@@ -406,17 +361,6 @@ int main(int argc, char *argv[]) {
             *nodes[gpu_index].num_seeds = 0;
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
-        // for now no multithreading here, this loop only execute when arraysize is changed
-        for (int j = 0; j < arraySize; ++j) {
-            int usedTrees = 0;
-            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
-                fprintf(out_file, "%lld\n", tempStorage[j]);
-            }
-        }
-
-        fflush(out_file); // its okay to flush something opened without writing
-        free(tempStorage);    // its okay to free NULL
-
 
         tempStorage = (long long*) malloc( sizeof(long long));
         arraySize=0;
@@ -429,14 +373,25 @@ int main(int argc, char *argv[]) {
                 //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
             }
             //fflush(out_file);
-            arraySize+=*nodes[gpu_index].num_seeds;
-            count += *nodes[gpu_index].num_seeds;
+            arraySize += *nodes[gpu_index].num_seeds;
         }
+
+        // for now no multithreading here, this loop only execute when arraysize is changed
+        for (int j = 0; j < arraySize; ++j) {
+            int usedTrees = 0;
+            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+                fprintf(out_file, "%lld\n", tempStorage[j]);
+                count++;
+            }
+        }
+
+        fflush(out_file);
+        free(tempStorage);
 
         double iterationTime = (double)(clock() - lastIteration) / CLOCKS_PER_SEC;
         double timeElapsed = (double)(clock() - startTime) / CLOCKS_PER_SEC;
         lastIteration = clock();
-        ulong numSearched = offset + WORK_UNIT_SIZE * GPU_COUNT;
+        ulong numSearched = offset + WORK_UNIT_SIZE * GPU_COUNT - OFFSET;
         double speed = (double)WORK_UNIT_SIZE * GPU_COUNT / (double)iterationTime / 1000000.0;
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
         double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / (double) (WORK_UNIT_SIZE * GPU_COUNT) * iterationTime;
@@ -452,20 +407,9 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %lld seeds. Found: %lld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
+        printf("Searched: %ld seeds. Found: %ld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
 
     }
-
-    // for now no multithreading here, this loop only execute when arraysize is changed
-    for (int j = 0; j < arraySize; ++j) {
-        int usedTrees = 0;
-        if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, (X_TRANSLATE+8) + 16)) {
-            fprintf(out_file, "%lld\n", tempStorage[j]);
-        }
-    }
-
-    fflush(out_file);
-    free(tempStorage);
 
     fclose(out_file);
 
