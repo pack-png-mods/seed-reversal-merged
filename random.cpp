@@ -43,6 +43,11 @@ random_math::LCG random_math::LCG::combine(int64_t steps)
 
 random_math::LCG random_math::JavaRand::lcg = LCG(0x5DEECE66DULL, 0xBULL, 1ULL << 48);
 
+void random_math::JavaRand::init()
+{
+    random_math::JavaRand::lcg = LCG(0x5DEECE66DULL, 0xBULL, 1ULL << 48);
+}
+
 random_math::JavaRand::JavaRand(long seed, bool scramble)
         : seed(0)
 {

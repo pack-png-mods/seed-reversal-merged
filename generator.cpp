@@ -76,4 +76,8 @@ bool generator::ChunkGenerator::populate(int64_t chunkSeed, int *uTrees, int wat
     return *uTrees != -1;
 }
 
-random_math::LCG generator::ChunkGenerator::advance_3759 = random_math::JavaRand::lcg.combine(3759);
+void generator::ChunkGenerator::init()
+{
+    generator::ChunkGenerator::advance_3759 = random_math::JavaRand::lcg.combine(3759);
+}
+random_math::LCG generator::ChunkGenerator::advance_3759(1, 1, 1);

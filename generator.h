@@ -14,6 +14,7 @@ namespace generator
         static bool *generateLeafPattern(random_math::JavaRand& random);
         static int32_t checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX);
     public:
+        static void init();
         static random_math::LCG advance_3759;
         static bool populate(int64_t chunkSeed, int *uTrees, int waterfallX);
 

@@ -323,6 +323,9 @@ void calculate_search_backs() {
 
 int main(int argc, char *argv[]) {
 #define int int32_t
+    random_math::JavaRand::init();
+    generator::ChunkGenerator::init();
+
     GPU_Node *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
     printf("Searching %ld total seeds...\n", TOTAL_WORK_SIZE);
 

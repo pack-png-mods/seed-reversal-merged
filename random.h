@@ -27,6 +27,7 @@ namespace random_math
         uint64_t seed;
     public:
         static LCG lcg;
+        static void init();
 
         explicit JavaRand(long seed, bool scramble = true);
         uint64_t getSeed();
