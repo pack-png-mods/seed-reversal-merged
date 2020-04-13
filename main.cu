@@ -321,6 +321,18 @@ void calculate_search_backs() {
 #define OFFSET 0
 #endif
 
+
+
+void run(int offset, int workSize,long long *tempStorage, int *count ,FILE * out_file){
+    for (int j = 0; j < workSize; ++j) {
+        if (generator::ChunkGenerator::populate(tempStorage[j+offset], X_TRANSLATE + 16)) {
+            fprintf(out_file, "%lld\n", tempStorage[j]);
+            count++;
+        }
+    }
+    fflush(out_file);
+
+}
 int main(int argc, char *argv[]) {
 #define int int32_t
     random_math::JavaRand::init();
@@ -331,13 +343,24 @@ int main(int argc, char *argv[]) {
 
     calculate_search_backs();
 
-    FILE* out_file = fopen("chunk_seeds.txt", "w");
+    FILE* out_file = fopen("chunk_seeds_last.txt", "w");
 
     for(int i = 0; i < GPU_COUNT; i++) {
         setup_gpu_node(&nodes[i],i);
     }
 
-
+    int threadCount = std::thread::hardware_concurrency();
+    assert threadCount-4>1;
+    threadCount=threadCount-4;
+    std::thread threads[threadCount];
+    FILE* out_files[threadCount];
+    int counts[threadCount];
+    printf("Using %d threads for cpu work\n",threadCount);
+    for (int i = 0; i < threadCount; ++i) {
+        FILE* temp = fopen("chunk_seeds"+std::to_string(i)+".txt", "w");
+        out_files[i]=temp;
+        counts[i]=0;
+    }
     ulong count = 0;
     clock_t lastIteration = clock();
     clock_t startTime = clock();
@@ -366,15 +389,18 @@ int main(int argc, char *argv[]) {
         }
 
         // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
-        for (int j = 0; j < arraySize; ++j) {
-            int usedTrees = 0;
-            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
-                fprintf(out_file, "%lld\n", tempStorage[j]);
-                count++;
-            }
+        int workSize=arraySize/threadCount;
+        for (int k = 0; arraySize!=0 && k < threadCount ; ++k) {
+            // we can use tempStorage directly since no thread will access the same index
+            threads[k] = std::thread(run,k*workSize,k!=threadCount-1?workSize:arraySize%workSize,std::ref(tempStorage),std::ref(counts[k]),std::ref(out_files[k]));
+        }
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        for (int j = 0; j < threadCount; ++j) {
+            count+=counts[j]
         }
 
-        fflush(out_file);
         free(tempStorage);
 
         tempStorage = (long long*) malloc( sizeof(long long));
