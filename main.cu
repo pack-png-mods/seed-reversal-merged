@@ -365,6 +365,18 @@ int main(int argc, char *argv[]) {
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
+        // for now no multithreading here, this loop only execute when arraysize is changed
+        for (int j = 0; j < arraySize; ++j) {
+            int usedTrees = 0;
+            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+                fprintf(out_file, "%lld\n", tempStorage[j]);
+                count++;
+            }
+        }
+
+        fflush(out_file);
+        free(tempStorage);
+
         tempStorage = (long long*) malloc( sizeof(long long));
         arraySize=0;
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
@@ -378,18 +390,6 @@ int main(int argc, char *argv[]) {
             //fflush(out_file);
             arraySize += *nodes[gpu_index].num_seeds;
         }
-
-        // for now no multithreading here, this loop only execute when arraysize is changed
-        for (int j = 0; j < arraySize; ++j) {
-            int usedTrees = 0;
-            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
-                fprintf(out_file, "%lld\n", tempStorage[j]);
-                count++;
-            }
-        }
-
-        fflush(out_file);
-        free(tempStorage);
 
         double iterationTime = (double)(clock() - lastIteration) / CLOCKS_PER_SEC;
         double timeElapsed = (double)(clock() - startTime) / CLOCKS_PER_SEC;
@@ -413,6 +413,23 @@ int main(int argc, char *argv[]) {
         printf("Searched: %ld seeds. Found: %ld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
 
     }
+
+
+    // for now no multithreading here, this loop only execute when arraysize is changed
+    for (int j = 0; j < arraySize; ++j) {
+        int usedTrees = 0;
+        if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+            fprintf(out_file, "%lld\n", tempStorage[j]);
+            count++;
+        }
+    }
+
+    fflush(out_file);
+    free(tempStorage);
+
+
+
+
 
     fclose(out_file);
 
