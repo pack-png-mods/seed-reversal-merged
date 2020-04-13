@@ -63,7 +63,6 @@ bool generator::ChunkGenerator::leafPatternNot0And4(random_math::JavaRand& rando
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
 {
     bool treesFound[2] = {false, false};
-    bool leafPattern[16];
     int8_t foundTreeCount = 0;
     for (int i = 0; i <= maxTreeCount; ++i) {
         int32_t treeX = random.nextIntPow2Unchecked(16);

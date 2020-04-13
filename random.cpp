@@ -64,7 +64,7 @@ uint64_t random_math::JavaRand::getSeed()
     return this->seed;
 }
 
-void random_math::JavaRand::advance(random_math::LCG lcg) 
+void random_math::JavaRand::advance(random_math::LCG lcg)
 {
     this->seed = lcg.next(this->seed);
 }
@@ -88,7 +88,7 @@ uint32_t random_math::JavaRand::next(int32_t bits)
 uint32_t random_math::JavaRand::nextInt(int32_t bound)
 {
     if (bound <= 0) {
-	abort();
+	    abort();
     }
 
     if ((bound & -bound) == bound) {
