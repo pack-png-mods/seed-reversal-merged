@@ -365,7 +365,7 @@ int main(int argc, char *argv[]) {
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        // for now no multithreading here, this loop only execute when arraysize is changed
+        // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
         for (int j = 0; j < arraySize; ++j) {
             int usedTrees = 0;
             if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
@@ -415,7 +415,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    // for now no multithreading here, this loop only execute when arraysize is changed
+    // Last batch to do
     for (int j = 0; j < arraySize; ++j) {
         int usedTrees = 0;
         if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
@@ -426,11 +426,6 @@ int main(int argc, char *argv[]) {
 
     fflush(out_file);
     free(tempStorage);
-
-
-
-
-
     fclose(out_file);
 
 }
