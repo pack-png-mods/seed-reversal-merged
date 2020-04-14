@@ -445,7 +445,6 @@ int main(int argc, char *argv[]) {
 
     }
 
-
     // Last batch to do
     for (int j = 0; j < arraySize; ++j) {
         if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
