@@ -359,7 +359,6 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
-    size_t numThreads = std::thread::hardware_concurrency() - 4;
     std::mutex fileMutex;
 
     std::atomic<ulong> count = 0;
