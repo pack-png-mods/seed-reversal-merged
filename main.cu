@@ -63,7 +63,7 @@
 #define RANDOM_ADDEND 0xBp-48
 #define RANDOM_SCALE 0x1p-48
 
-inline uint __host__ __device__  random_next(Random* random, int bits) {
+inline uint __host__ __device__  random_next(Random *random, int bits) {
     *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
     return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
@@ -214,7 +214,7 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
     lattice_x += (signed_seed_t) (TREE_X * LI00 + TREE_Z * LI01);
     lattice_z += (signed_seed_t) (TREE_X * LI10 + TREE_Z * LI11);
 
-    Random rand = (Random) ((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
+    Random rand = (Random)((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
     advance_m1(rand);
 
     Random tree_start = rand;
@@ -234,8 +234,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x) {
         Random tree_start = tree_starts[i];
 
-        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++)
-        {
+        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++) {
             Random start = (tree_start * search_back_multipliers[treeBackCalls] + search_back_addends[treeBackCalls]) & RANDOM_MASK;
             Random rand = start;
 
@@ -346,17 +345,6 @@ void calculate_search_backs() {
 #endif
 
 
-
-void run(int offset, int workSize,long long *tempStorage, int *count ,FILE * out_file){
-    for (int j = 0; j < workSize; ++j) {
-        if (generator::ChunkGenerator::populate(tempStorage[j+offset], X_TRANSLATE + 16)) {
-            fprintf(out_file, "%lld\n", tempStorage[j]);
-            count++;
-        }
-    }
-    fflush(out_file);
-
-}
 int main(int argc, char *argv[]) {
 #define int int32_t
     random_math::JavaRand::init();
