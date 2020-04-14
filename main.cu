@@ -63,8 +63,7 @@
 #define RANDOM_ADDEND 0xBp-48
 #define RANDOM_SCALE 0x1p-48
 
-inline uint __host__ __device__  random_next(Random* random, int bits)
-{
+inline uint __host__ __device__  random_next(Random* random, int bits) {
     *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
     return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
@@ -80,7 +79,7 @@ inline uint __host__ __device__  random_next(Random* random, int bits)
 #define FAST_NEXT_INT
 
 // Random::next(bits)
-__host__ __device__ inline uint random_next(Random *random, int bits) {
+__host__ __device__ inline uint random_next(Random* random, int bits) {
     *random = (*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) & RANDOM_MASK;
     return (uint)(*random >> (48 - bits));
 }
@@ -91,7 +90,7 @@ __host__ __device__ inline uint random_next(Random *random, int bits) {
 #define get_random_unseeded(state) ((Random) ((state) * RANDOM_SCALE))
 
 // Random::nextInt(bound)
-__host__ __device__ inline uint random_next_int(Random *random, uint bound) {
+__host__ __device__ inline uint random_next_int(Random* random, uint bound) {
     int r = random_next(random, 31);
     int m = bound - 1;
     if ((bound & m) == 0) {
@@ -102,14 +101,14 @@ __host__ __device__ inline uint random_next_int(Random *random, uint bound) {
         r %= bound;
 #else
         for (int u = r;
-             u - (r = u % bound) + m < 0;
-             u = random_next(random, 31));
+            u - (r = u % bound) + m < 0;
+            u = random_next(random, 31));
 #endif
     }
     return r;
 }
 
-__host__ __device__ inline int64_t random_next_long (Random *random) {
+__host__ __device__ inline int64_t random_next_long(Random* random) {
     return (((int64_t)random_next(random, 32)) << 32) + random_next(random, 32);
 }
 
@@ -225,7 +224,7 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
     res &= random_next(&rand, 4) == TREE_Z;
     res &= random_next_int(&rand, 3) == (ulong) (TREE_HEIGHT - 4);
 
-    if(res) {
+    if (res) {
         int index = atomicAdd(num_starts, 1);
         starts[index] = tree_start;
     }
@@ -235,7 +234,8 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x) {
         Random tree_start = tree_starts[i];
 
-        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++) {
+        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++)
+        {
             Random start = (tree_start * search_back_multipliers[treeBackCalls] + search_back_addends[treeBackCalls]) & RANDOM_MASK;
             Random rand = start;
 
