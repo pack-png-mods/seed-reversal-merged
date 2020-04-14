@@ -367,8 +367,7 @@ int main(int argc, char *argv[]) {
 
         // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
         for (int j = 0; j < arraySize; ++j) {
-            int usedTrees = 0;
-            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+            if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
                 fprintf(out_file, "%lld\n", tempStorage[j]);
                 count++;
             }
@@ -395,9 +394,9 @@ int main(int argc, char *argv[]) {
         double timeElapsed = (double)(clock() - startTime) / CLOCKS_PER_SEC;
         lastIteration = clock();
         ulong numSearched = offset + WORK_UNIT_SIZE * GPU_COUNT - OFFSET;
-        double speed = (double)WORK_UNIT_SIZE * GPU_COUNT / (double)iterationTime / 1000000.0;
+        double speed = numSearched / timeElapsed / 1000000;
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
-        double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / (double) (WORK_UNIT_SIZE * GPU_COUNT) * iterationTime;
+        double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / speed / 1000000;
         char suffix = 's';
         if (estimatedTime >= 3600) {
             suffix = 'h';
@@ -417,8 +416,7 @@ int main(int argc, char *argv[]) {
 
     // Last batch to do
     for (int j = 0; j < arraySize; ++j) {
-        int usedTrees = 0;
-        if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+        if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
             fprintf(out_file, "%lld\n", tempStorage[j]);
             count++;
         }
