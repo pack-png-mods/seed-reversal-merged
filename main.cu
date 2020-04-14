@@ -344,8 +344,7 @@ void calculate_search_backs() {
 #define OFFSET 0
 #endif
 
-
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 #define int int32_t
     random_math::JavaRand::init();
     generator::ChunkGenerator::init();
@@ -357,8 +356,8 @@ int main(int argc, char *argv[]) {
 
     FILE* out_file = fopen("chunk_seeds_last.txt", "w");
 
-    for(int i = 0; i < GPU_COUNT; i++) {
-        setup_gpu_node(&nodes[i],i);
+    for (int i = 0; i < GPU_COUNT; i++) {
+        setup_gpu_node(&nodes[i], i);
     }
 
     std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
@@ -417,7 +416,7 @@ int main(int argc, char *argv[]) {
         for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
-            tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
+            tempStorage = (long long*) realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
             }
