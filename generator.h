@@ -16,7 +16,7 @@ namespace generator
     public:
         static void init();
         static random_math::LCG advance_3759;
-        static bool populate(int64_t chunkSeed, int *uTrees, int waterfallX);
+        static bool populate(int64_t chunkSeed, int waterfallX);
 
     };
 }

@@ -63,9 +63,9 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
     return -1;
 }
 
-bool generator::ChunkGenerator::populate(int64_t chunkSeed, int *uTrees, int waterfallX)
+bool generator::ChunkGenerator::populate(int64_t chunkSeed, int waterfallX)
 {
-    *uTrees = -1;
+    int *uTrees = -1;
     random_math::JavaRand random(advance_3759.next(chunkSeed), false);
 
     int32_t maxBaseTreeCount = 12;
