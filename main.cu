@@ -61,7 +61,7 @@
 #define RANDOM_ADDEND 0xBp-48
 #define RANDOM_SCALE 0x1p-48
 
-inline uint __host__ __device__  random_next(Random* random, int bits) {
+inline uint __host__ __device__  random_next(Random *random, int bits) {
     *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
     return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
@@ -106,7 +106,7 @@ __host__ __device__ inline uint random_next_int(Random *random, uint bound) {
     return r;
 }
 
-__host__ __device__ inline int64_t random_next_long(Random *random) {
+__host__ __device__ inline int64_t random_next_long (Random *random) {
     return (((int64_t)random_next(random, 32)) << 32) + random_next(random, 32);
 }
 
@@ -212,7 +212,7 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
     lattice_x += (signed_seed_t) (TREE_X * LI00 + TREE_Z * LI01);
     lattice_z += (signed_seed_t) (TREE_X * LI10 + TREE_Z * LI11);
 
-    Random rand = (Random)((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
+    Random rand = (Random) ((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
     advance_m1(rand);
 
     Random tree_start = rand;
