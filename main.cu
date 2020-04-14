@@ -61,8 +61,7 @@
 #define RANDOM_ADDEND 0xBp-48
 #define RANDOM_SCALE 0x1p-48
 
-inline uint __host__ __device__  random_next(Random* random, int bits)
-{
+inline uint __host__ __device__  random_next(Random* random, int bits) {
     *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
     return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
@@ -78,8 +77,7 @@ inline uint __host__ __device__  random_next(Random* random, int bits)
 #define FAST_NEXT_INT
 
 // Random::next(bits)
-__host__ __device__ inline uint random_next(Random* random, int bits)
-{
+__host__ __device__ inline uint random_next(Random* random, int bits) {
     *random = (*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) & RANDOM_MASK;
     return (uint)(*random >> (48 - bits));
 }
@@ -90,17 +88,14 @@ __host__ __device__ inline uint random_next(Random* random, int bits)
 #define get_random_unseeded(state) ((Random) ((state) * RANDOM_SCALE))
 
 // Random::nextInt(bound)
-__host__ __device__ inline uint random_next_int(Random* random, uint bound)
-{
+__host__ __device__ inline uint random_next_int(Random* random, uint bound) {
     int r = random_next(random, 31);
     int m = bound - 1;
-    if ((bound & m) == 0)
-    {
+    if ((bound & m) == 0) {
         // Could probably use __mul64hi here
         r = (uint)((bound * (ulong)r) >> 31);
     }
-    else
-    {
+    else {
 #ifdef FAST_NEXT_INT
         r %= bound;
 #else
@@ -112,16 +107,13 @@ __host__ __device__ inline uint random_next_int(Random* random, uint bound)
     return r;
 }
 
-__host__ __device__ inline int64_t random_next_long(Random* random)
-{
+__host__ __device__ inline int64_t random_next_long(Random* random) {
     return (((int64_t)random_next(random, 32)) << 32) + random_next(random, 32);
 }
 
 #define CHECK_GPU_ERR(code) gpuAssert((code), __FILE__, __LINE__)
-inline void gpuAssert(cudaError_t code, const char* file, int line)
-{
-    if (code != cudaSuccess)
-    {
+inline void gpuAssert(cudaError_t code, const char* file, int line) {
+    if (code != cudaSuccess) {
         fprintf(stderr, "GPUassert: %s (code %d) %s %d\n", cudaGetErrorString(code), code, file, line);
         exit(code);
     }
@@ -147,8 +139,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line)
 #define TREE_HEIGHT 5
 
 #define OTHER_TREE_COUNT 1
-__device__ inline int getTreeHeight(int x, int z)
-{
+__device__ inline int getTreeHeight(int x, int z) {
     if (x == TREE_X && z == TREE_Z)
         return TREE_HEIGHT;
 
@@ -208,16 +199,14 @@ int search_back_count;
 #define WORK_UNIT_SIZE (1LL << 23)
 #define BLOCK_SIZE 256
 
-__global__ void doPreWork(ulong offset, Random* starts, int* num_starts)
-{
+__global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
     // lattice tree position
     ulong global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     signed_seed_t lattice_x = (signed_seed_t)((offset + global_id) % SIZE_X) + LOWER_X;
     signed_seed_t lattice_z = (signed_seed_t)((offset + global_id) / SIZE_X) + LOWER_Z;
     lattice_z += (B_X * lattice_z < B_Z* lattice_x) * SIZE_Z;
-    if (D_X * lattice_z > D_Z * lattice_x)
-    {
+    if (D_X * lattice_z > D_Z * lattice_x) {
         lattice_x += B_X;
         lattice_z += B_Z;
     }
@@ -234,21 +223,17 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts)
     res &= random_next(&rand, 4) == TREE_Z;
     res &= random_next_int(&rand, 3) == (ulong)(TREE_HEIGHT - 4);
 
-    if (res)
-    {
+    if (res) {
         int index = atomicAdd(num_starts, 1);
         starts[index] = tree_start;
     }
 }
 
-__global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulong* seeds, int gpu_search_back_count)
-{
-    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x)
-    {
+__global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulong* seeds, int gpu_search_back_count) {
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x) {
         Random tree_start = tree_starts[i];
 
-        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++)
-        {
+        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++) {
             Random start = (tree_start * search_back_multipliers[treeBackCalls] + search_back_addends[treeBackCalls]) & RANDOM_MASK;
             Random rand = start;
 
@@ -261,8 +246,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
             memset(generated_tree, 0x00, sizeof(generated_tree));
 
             int treesMatched = 0;
-            for (int treeAttempt = 0; treeAttempt <= MAX_TREE_ATTEMPTS; treeAttempt++)
-            {
+            for (int treeAttempt = 0; treeAttempt <= MAX_TREE_ATTEMPTS; treeAttempt++) {
                 int treeX = random_next(&rand, 4);
                 int treeZ = random_next(&rand, 4);
                 int wantedTreeHeight = getTreeHeight(treeX, treeZ);
@@ -271,8 +255,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
                 int& boolpack = generated_tree[treeX];
                 const int mask = 1 << (treeZ % 16);
 
-                if (treeHeight == wantedTreeHeight && !(boolpack & mask))
-                {
+                if (treeHeight == wantedTreeHeight && !(boolpack & mask)) {
                     treesMatched++;
                     boolpack |= mask;
                     advance_16(rand);
@@ -281,8 +264,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
 
             this_res &= treesMatched >= OTHER_TREE_COUNT + 1;
 
-            if (this_res)
-            {
+            if (this_res) {
                 Random start_chunk_rand = start;
                 advance_m3759(start_chunk_rand);
 
@@ -295,8 +277,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
     }
 }
 
-struct GPU_Node
-{
+struct GPU_Node {
     int GPU;
     int* num_seeds;
     ulong* seeds;
@@ -304,8 +285,7 @@ struct GPU_Node
     Random* tree_starts;
 };
 
-void setup_gpu_node(GPU_Node* node, int gpu)
-{
+void setup_gpu_node(GPU_Node* node, int gpu) {
     CHECK_GPU_ERR(cudaSetDevice(gpu));
     node->GPU = gpu;
     CHECK_GPU_ERR(cudaMallocManaged(&node->num_seeds, sizeof(*node->num_seeds)));
@@ -319,20 +299,16 @@ void setup_gpu_node(GPU_Node* node, int gpu)
 #define GPU_COUNT 1
 #endif
 
-void calculate_search_backs()
-{
+void calculate_search_backs() {
     bool allow_search_back[MAX_TREE_SEARCH_BACK + 1];
     memset(allow_search_back, false, sizeof(allow_search_back));
 
-    for (int i = 0; i <= MAX_TREE_ATTEMPTS - OTHER_TREE_COUNT - 1; i++)
-    {
+    for (int i = 0; i <= MAX_TREE_ATTEMPTS - OTHER_TREE_COUNT - 1; i++) {
         allow_search_back[i * 3] = true;
     }
 
-    for (int tree = 0; tree < OTHER_TREE_COUNT; tree++)
-    {
-        for (int i = 0; i <= MAX_TREE_SEARCH_BACK - 19; i++)
-        {
+    for (int tree = 0; tree < OTHER_TREE_COUNT; tree++) {
+        for (int i = 0; i <= MAX_TREE_SEARCH_BACK - 19; i++) {
             if (allow_search_back[i])
                 allow_search_back[i + 19] = true;
         }
@@ -343,10 +319,8 @@ void calculate_search_backs()
     ulong addend = 0;
     ulong multipliers[MAX_TREE_SEARCH_BACK + 1];
     ulong addends[MAX_TREE_SEARCH_BACK + 1];
-    for (int i = 0; i <= MAX_TREE_SEARCH_BACK; i++)
-    {
-        if (allow_search_back[i])
-        {
+    for (int i = 0; i <= MAX_TREE_SEARCH_BACK; i++) {
+        if (allow_search_back[i]) {
             int index = search_back_count++;
             multipliers[index] = multiplier;
             addends[index] = addend;
@@ -355,8 +329,7 @@ void calculate_search_backs()
         addend = (0xDFE05BCB1365LL * addend + 0x615C0E462AA9LL) & RANDOM_MASK;
     }
 
-    for (int gpu = 0; gpu < GPU_COUNT; gpu++)
-    {
+    for (int gpu = 0; gpu < GPU_COUNT; gpu++) {
         CHECK_GPU_ERR(cudaSetDevice(gpu));
         CHECK_GPU_ERR(cudaMemcpyToSymbol(search_back_multipliers, &multipliers, search_back_count * sizeof(*multipliers)));
         CHECK_GPU_ERR(cudaMemcpyToSymbol(search_back_addends, &addends, search_back_count * sizeof(*addends)));
@@ -370,8 +343,7 @@ void calculate_search_backs()
 #define OFFSET 0
 #endif
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 #define int int32_t
     random_math::JavaRand::init();
     generator::ChunkGenerator::init();
@@ -383,8 +355,7 @@ int main(int argc, char* argv[])
 
     FILE* out_file = fopen("chunk_seeds.txt", "w");
 
-    for (int i = 0; i < GPU_COUNT; i++)
-    {
+    for (int i = 0; i < GPU_COUNT; i++) {
         setup_gpu_node(&nodes[i], i);
     }
 
@@ -397,49 +368,42 @@ int main(int argc, char* argv[])
     clock_t startTime = clock();
     long long* tempStorage = NULL;
     ulong arraySize = 0;
-    for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;)
-    {
+    for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++)
-        {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_tree_starts = 0;
-            doPreWork << <WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE >> > (offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
+            doPreWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE >>>(offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
             offset += WORK_UNIT_SIZE;
         }
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++)
-        {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
         }
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++)
-        {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_seeds = 0;
-            doWork << <WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE >> > (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
+            doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE >>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        static auto threadFunc = [&](int start, int end)
-        {
-            for (int j = start; j < end; ++j)
-            {
-                if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16))
-                {
+        static auto threadFunc = [&](int start, int end) {
+            for (int j = start; j < end; ++j) {
+                if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
                     std::lock_guard<std::mutex> lock(fileMutex);
                     fprintf(out_file, "%lld\n", tempStorage[j]);
                     count++;
                 }
             }
         };
-        
+
 
         int chunkSize = arraySize / threads.size();
         for (size_t i = 0; i < threads.size(); i++)
-            threads[i] = std::thread(threadFunc, i * chunkSize, i == (threads.size()-1) ? arraySize : ((i+1) * chunkSize));
+            threads[i] = std::thread(threadFunc, i * chunkSize, i == (threads.size() - 1) ? arraySize : ((i + 1) * chunkSize));
 
         for (std::thread& x : threads)
             x.join();
@@ -449,13 +413,11 @@ int main(int argc, char* argv[])
 
         tempStorage = (long long*)malloc(sizeof(long long));
         arraySize = 0;
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++)
-        {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
             tempStorage = (long long*)realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
-            for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++)
-            {
+            for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize + i] = nodes[gpu_index].seeds[i];
                 //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
             }
@@ -471,18 +433,15 @@ int main(int argc, char* argv[])
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
         double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / speed / 1000000;
         char suffix = 's';
-        if (estimatedTime >= 3600)
-        {
+        if (estimatedTime >= 3600) {
             suffix = 'h';
             estimatedTime /= 3600.0;
         }
-        else if (estimatedTime >= 60)
-        {
+        else if (estimatedTime >= 60) {
             suffix = 'm';
             estimatedTime /= 60.0;
         }
-        if (progress >= 100.0)
-        {
+        if (progress >= 100.0) {
             estimatedTime = 0.0;
             suffix = 's';
         }
@@ -492,10 +451,8 @@ int main(int argc, char* argv[])
 
 
     // Last batch to do
-    for (int j = 0; j < arraySize; ++j)
-    {
-        if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16))
-        {
+    for (int j = 0; j < arraySize; ++j) {
+        if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
             fprintf(out_file, "%lld\n", tempStorage[j]);
             count++;
         }
