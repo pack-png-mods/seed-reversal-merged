@@ -388,17 +388,13 @@ int main(int argc, char *argv[]) {
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
-        int workSize=arraySize/threadCount;
-        for (int k = 0; arraySize!=0 && k < threadCount ; ++k) {
-            // we can use tempStorage directly since no thread will access the same index
-            threads[k] = std::thread(run,k*workSize,k!=threadCount-1?workSize:arraySize%workSize,std::ref(tempStorage),std::ref(counts[k]),std::ref(out_files[k]));
-        }
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        for (int j = 0; j < threadCount; ++j) {
-            count+=counts[j]
+        // for now no multithreading here, this loop only execute when arraysize is changed
+        for (int j = 0; j < arraySize; ++j) {
+            int usedTrees = 0;
+            if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
+                fprintf(out_file, "%lld\n", tempStorage[j]);
+                count++;
+            }
         }
 
         free(tempStorage);
@@ -441,7 +437,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    // Last batch to do
+    // for now no multithreading here, this loop only execute when arraysize is changed
     for (int j = 0; j < arraySize; ++j) {
         int usedTrees = 0;
         if (generator::ChunkGenerator::populate(tempStorage[j], &usedTrees, X_TRANSLATE + 16)) {
@@ -452,6 +448,11 @@ int main(int argc, char *argv[]) {
 
     fflush(out_file);
     free(tempStorage);
+
+
+
+
+
     fclose(out_file);
 
 }
