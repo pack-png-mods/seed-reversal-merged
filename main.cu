@@ -359,11 +359,14 @@ int main(int argc, char* argv[]) {
     std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
     std::mutex fileMutex;
 
-    std::atomic<ulong> count = 0;
+    std::atomic<ulong> count(0);
     clock_t lastIteration = clock();
     clock_t startTime = clock();
     long long* tempStorage = NULL;
     ulong arraySize = 0;
+
+    printf("Using %d threads for cpu work\n", (int)threads.size());
+
     for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
@@ -386,7 +389,7 @@ int main(int argc, char* argv[]) {
             doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        static auto threadFunc = [&](int start, int end) {
+        static auto threadFunc = [&](size_t start, size_t end) {
             for (int j = start; j < end; ++j) {
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
                     std::lock_guard<std::mutex> lock(fileMutex);
@@ -399,7 +402,7 @@ int main(int argc, char* argv[]) {
 
         int chunkSize = arraySize / threads.size();
         for(size_t i = 0; i < threads.size(); i++)
-            threads[i] = std::thread(threadFunc, i * chunkSize, i == (threads.size() - 1) ? arraySize : ((i + 1) * chunkSize));
+            threads[i] = std::thread(threadFunc, i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
 
         for(std::thread& x : threads)
             x.join();
