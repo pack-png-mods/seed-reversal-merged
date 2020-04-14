@@ -79,7 +79,7 @@ inline uint __host__ __device__  random_next(Random* random, int bits) {
 #define FAST_NEXT_INT
 
 // Random::next(bits)
-__host__ __device__ inline uint random_next(Random* random, int bits) {
+__host__ __device__ inline uint random_next(Random *random, int bits) {
     *random = (*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) & RANDOM_MASK;
     return (uint)(*random >> (48 - bits));
 }
@@ -90,7 +90,7 @@ __host__ __device__ inline uint random_next(Random* random, int bits) {
 #define get_random_unseeded(state) ((Random) ((state) * RANDOM_SCALE))
 
 // Random::nextInt(bound)
-__host__ __device__ inline uint random_next_int(Random* random, uint bound) {
+__host__ __device__ inline uint random_next_int(Random *random, uint bound) {
     int r = random_next(random, 31);
     int m = bound - 1;
     if ((bound & m) == 0) {
@@ -108,7 +108,7 @@ __host__ __device__ inline uint random_next_int(Random* random, uint bound) {
     return r;
 }
 
-__host__ __device__ inline int64_t random_next_long(Random* random) {
+__host__ __device__ inline int64_t random_next_long(Random *random) {
     return (((int64_t)random_next(random, 32)) << 32) + random_next(random, 32);
 }
 
@@ -373,64 +373,60 @@ int main(int argc, char *argv[]) {
         setup_gpu_node(&nodes[i],i);
     }
 
-    int threadCount = std::thread::hardware_concurrency();
-    threadCount=threadCount-4;
-    std::thread threads[threadCount];
-    FILE* out_files[threadCount];
-    int counts[threadCount];
-    printf("Using %d threads for cpu work\n",threadCount);
-    for (int i = 0; i < threadCount; ++i) {
-        std::ostringstream oss;
-        oss << "chunk_seeds" << std::to_string(i) << ".txt";
-        FILE* temp = fopen(oss.str().c_str(), "w");
-        out_files[i]=temp;
-        counts[i]=0;
-    }
-    ulong count = 0;
+    std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
+    size_t numThreads = std::thread::hardware_concurrency() - 4;
+    std::mutex fileMutex;
+
+    std::atomic<ulong> count(0);
     auto lastIteration = std::chrono::system_clock::now();
     auto startTime = std::chrono::system_clock::now();
-    long long *tempStorage=NULL;
-    ulong arraySize=0;
+    long long* tempStorage = NULL;
+    ulong arraySize = 0;
     for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
-        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_tree_starts = 0;
-            doPreWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
+            doPreWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
             offset += WORK_UNIT_SIZE;
         }
 
-        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
         }
 
-        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_seeds = 0;
-            doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
+            doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
-        int workSize=arraySize/threadCount;
-        for (int k = 0; arraySize!=0 && k < threadCount ; ++k) {
-            // we can use tempStorage directly since no thread will access the same index
-            threads[k] = std::thread(run,k*workSize,k!=threadCount-1?workSize:arraySize%workSize,std::ref(tempStorage),std::ref(counts[k]),std::ref(out_files[k]));
-        }
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        for (int j = 0; j < threadCount; ++j) {
-            count += counts[j];
-        }
+        static auto threadFunc = [&](int start, int end) {
+            for (int j = start; j < end; ++j) {
+                if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
+                    std::lock_guard<std::mutex> lock(fileMutex);
+                    fprintf(out_file, "%lld\n", tempStorage[j]);
+                    count++;
+                }
+            }
+        };
+
+
+        int chunkSize = arraySize / threads.size();
+        for(size_t i = 0; i < threads.size(); i++)
+            threads[i] = std::thread(threadFunc, i * chunkSize, i == (threads.size() - 1) ? arraySize : ((i + 1) * chunkSize));
+
+        for(std::thread& x : threads)
+            x.join();
 
         free(tempStorage);
 
-        tempStorage = (long long*) malloc( sizeof(long long));
-        arraySize=0;
-        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        tempStorage = (long long*)malloc(sizeof(long long));
+        arraySize = 0;
+        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
             tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
@@ -460,7 +456,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 " matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, elapsedTime.count(), speed, progress, estimatedTime, suffix);
+        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 " matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count.load(), elapsedTime.count(), speed, progress, estimatedTime, suffix);
 
     }
 
