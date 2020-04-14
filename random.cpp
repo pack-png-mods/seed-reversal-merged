@@ -25,7 +25,7 @@ random_math::LCG random_math::LCG::combine(int64_t steps)
     int64_t intermediateMultiplier = this->multiplier;
     int64_t intermediateAddend = this->addend;
 
-    for (ulong i = steps; i != 0; i >>= 1) {
+    for (unsigned long i = steps; i != 0; i >>= 1) {
         if ((i & 1) != 0) {
             mul *= intermediateMultiplier;
             add = intermediateMultiplier * add + intermediateAddend;
