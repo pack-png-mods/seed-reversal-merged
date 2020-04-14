@@ -16,15 +16,13 @@
 #endif
 
 // for windows plebs
-#ifdef _MSC_VER
+#ifdef __INTELLISENSE__
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
-#ifdef  __INTELLISENSE__
 #define __CUDACC__ //fixes function defenition in ide
 //void __syncthreads();
-#endif //  __INTELLISENSE__
 
 #include <device_launch_parameters.h>
 #include <device_functions.h>
