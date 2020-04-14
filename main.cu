@@ -15,6 +15,22 @@
 #include <__clang_cuda_cmath.h>
 #endif
 
+// for windows plebs
+#ifdef _MSC_VER
+
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
+#ifdef  __INTELLISENSE__
+#define __CUDACC__ //fixes function defenition in ide
+//void __syncthreads();
+#endif //  __INTELLISENSE__
+
+#include <device_launch_parameters.h>
+#include <device_functions.h>
+#include <device_atomic_functions.h>
+
+#endif
 
 #include <chrono>
 #include <stdint.h>
@@ -24,7 +40,11 @@
 #include <time.h>
 #include <ctype.h>
 #include <sstream>
+
 #include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
 
 
 #define signed_seed_t int64_t
@@ -43,9 +63,10 @@
 #define RANDOM_ADDEND 0xBp-48
 #define RANDOM_SCALE 0x1p-48
 
-inline uint __host__ __device__  random_next(Random *random, int bits) {
-  *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
-  return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
+inline uint __host__ __device__  random_next(Random* random, int bits)
+{
+    *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
+    return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
 
 #else
@@ -415,9 +436,7 @@ int main(int argc, char *argv[]) {
             tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
-                //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
             }
-            //fflush(out_file);
             arraySize += *nodes[gpu_index].num_seeds;
         }
 
