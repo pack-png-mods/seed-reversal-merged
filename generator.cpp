@@ -65,15 +65,14 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
 
 bool generator::ChunkGenerator::populate(int64_t chunkSeed, int waterfallX)
 {
-    int *uTrees = -1;
     random_math::JavaRand random(advance_3759.next(chunkSeed), false);
 
     int32_t maxBaseTreeCount = 12;
     if (random.nextInt(10) == 0)
         return false;
 
-    *uTrees = ChunkGenerator::checkTrees(random, maxBaseTreeCount, waterfallX);
-    return *uTrees != -1;
+    int uTrees = ChunkGenerator::checkTrees(random, maxBaseTreeCount, waterfallX);
+    return uTrees != -1;
 }
 
 void generator::ChunkGenerator::init()
