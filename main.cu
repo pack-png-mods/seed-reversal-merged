@@ -369,7 +369,7 @@ int main(int argc, char* argv[]) {
     ulong arraySize = 0;
     for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_tree_starts = 0;
@@ -377,7 +377,7 @@ int main(int argc, char* argv[]) {
             offset += WORK_UNIT_SIZE;
         }
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
         }
@@ -415,7 +415,7 @@ int main(int argc, char* argv[]) {
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
-            tempStorage = (long long*)realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
+            tempStorage = (long long*) realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize + i] = nodes[gpu_index].seeds[i];
                 //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
