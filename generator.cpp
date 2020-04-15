@@ -25,22 +25,22 @@ bool generator::ChunkGenerator::isValidTreeSpot(int treeX, int treeZ, bool first
 
 void generator::ChunkGenerator::generateLeafPattern(random_math::JavaRand& random, bool *out)
 {
-    out[0] = random.nextInt(2) != 0;
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    out[4] = random.nextInt(2) != 0;
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
-    random.nextInt(2);
+    out[0] = random.nextIntPow2Unchecked(2) != 0;
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    out[4] = random.nextIntPow2Unchecked(2) != 0;
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
+    random.nextIntPow2Unchecked(2);
 }
 
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
@@ -49,8 +49,8 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
     bool leafPattern[16];
     int8_t foundTreeCount = 0;
     for (int i = 0; i <= maxTreeCount; ++i) {
-        int32_t treeX = random.nextInt(16);
-        int32_t treeZ = random.nextInt(16);
+        int32_t treeX = random.nextIntPow2Unchecked(16);
+        int32_t treeZ = random.nextIntPow2Unchecked(16);
         int32_t height = random.nextInt(3) + 4;
         if (!treesFound[0] && treeX == waterfallX + TREE1_X && treeZ == TREE1_Z && height == TREE1_HEIGHT) {
             generateLeafPattern(random, leafPattern);

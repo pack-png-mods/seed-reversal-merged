@@ -74,7 +74,7 @@ uint32_t random_math::JavaRand::next(int32_t bits)
 uint32_t random_math::JavaRand::nextInt(int32_t bound)
 {
     if (bound <= 0) {
-        throw std::invalid_argument("Bound must be positive");
+	abort();
     }
 
     if ((bound & -bound) == bound) {
@@ -88,4 +88,8 @@ uint32_t random_math::JavaRand::nextInt(int32_t bound)
         value = bits % bound;
     } while (bits - value + (bound - 1) < 0);
     return value;
+}
+
+uint32_t random_math::JavaRand::nextIntPow2Unchecked(int32_t bound) {
+    return (int32_t) ((bound * (int64_t) this->next(31)) >> 31);
 }
