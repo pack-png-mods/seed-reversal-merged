@@ -50,6 +50,7 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
                 foundTreeCount++;
                 treesFound[1] = true;
             } else {
+                delete[] leafPattern;
                 return -1;
             }
             delete[] leafPattern;
