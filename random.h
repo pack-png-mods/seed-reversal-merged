@@ -34,6 +34,8 @@ namespace random_math
         void setSeed(int64_t seed, bool scramble = true);
         uint32_t next(int32_t bits);
         uint32_t nextInt(int32_t bound);
+        /* bound must be a positive power of 2 */
+        uint32_t nextIntPow2Unchecked(int32_t bound);
     };
 
 }
