@@ -376,12 +376,15 @@ int main(int argc, char *argv[]) {
         fflush(out_file);
         free(tempStorage);
 
-        tempStorage = (long long*) malloc( sizeof(long long));
-        arraySize=0;
+        arraySize = 0;
+        for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+            arraySize += *nodes[gpu_index].num_seeds;
+        }
+        tempStorage = (long long*) malloc(arraySize * sizeof(signed_seed_t));
+        arraySize = 0;
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
-            tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
                 //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
