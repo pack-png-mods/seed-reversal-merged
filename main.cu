@@ -446,6 +446,7 @@ int main(int argc, char *argv[]) {
         double speed = numSearched / elapsedTime.count() / 1000000;
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
         double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / speed / 1000000;
+        ulong curCount = count;
         char suffix = 's';
         if (estimatedTime >= 3600) {
             suffix = 'h';
