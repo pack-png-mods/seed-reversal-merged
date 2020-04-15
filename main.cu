@@ -320,6 +320,7 @@ void calculate_search_backs() {
 #undef int
 #include "generator.h"
 
+// Change this variable to control the amount of threads the processor is going to use.
 #ifndef THREAD_COUNT
 #define THREAD_COUNT 4
 #endif
@@ -331,11 +332,12 @@ void calculate_search_backs() {
 std::mutex fileMutex;
 
 // This function does most of the brute force work of filtering out chunk seeds.
-// It's also usually the bottleneck in the function
+// It's also usually the bottleneck in the program.
 ulong filter(int start, int arraySize, long long* tempStorage, FILE* out_file) {
     ulong count = 0;
     for (int j = start; j < arraySize; ++j) {
         if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
+            // We use a write lock here to make sure the async
             fileMutex.lock();
             fprintf(out_file, "%lld\n", tempStorage[j]);
             fileMutex.unlock();
@@ -388,17 +390,17 @@ int main(int argc, char *argv[]) {
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        //initialize the futures here, to make each bit process a chunk of the array
+        // Initialize the futures here, to make each one process a chunk of the array
         std::vector<std::future<ulong>> futures;
         ulong amtPerThread = arraySize / THREAD_COUNT;
         int addition = arraySize % THREAD_COUNT;
         for (int i = 0; i < THREAD_COUNT; i++) {
-            futures.push_back(std::async(filter, amtPerThread * i, amtPerThread + (i == THREAD_COUNT - 1 ? addition : 0), tempStorage, out_file));
+            futures.push_back(std::async(std::launch::async, filter, amtPerThread * i, amtPerThread + (i == THREAD_COUNT - 1 ? addition : 0), tempStorage, out_file));
         }
 
 
-        //this gets the value of each processed chunk and adds it to the total. While .get() blocks, it lets the other
-        //futures process in parallel so it will be faster overall.
+        // This gets the value of each processed chunk and adds it to the total. While .get() blocks, it lets the other
+        // Futures process in parallel so it will be faster overall.
         for(auto & future : futures) {
             count += future.get();
         }
