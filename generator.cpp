@@ -25,9 +25,22 @@ bool generator::ChunkGenerator::isValidTreeSpot(int treeX, int treeZ, bool first
 
 void generator::ChunkGenerator::generateLeafPattern(random_math::JavaRand& random, bool *out)
 {
-    for (int32_t i = 0; i < 16; i++) {
-        out[i] = random.nextInt(2) != 0;
-    }
+    out[0] = random.nextIntPow2Unchecked(2) != 0;
+    out[1] = random.nextIntPow2Unchecked(2) != 0;
+    out[2] = random.nextIntPow2Unchecked(2) != 0;
+    out[3] = random.nextIntPow2Unchecked(2) != 0;
+    out[4] = random.nextIntPow2Unchecked(2) != 0;
+    out[5] = random.nextIntPow2Unchecked(2) != 0;
+    out[6] = random.nextIntPow2Unchecked(2) != 0;
+    out[7] = random.nextIntPow2Unchecked(2) != 0;
+    out[8] = random.nextIntPow2Unchecked(2) != 0;
+    out[9] = random.nextIntPow2Unchecked(2) != 0;
+    out[10] = random.nextIntPow2Unchecked(2) != 0;
+    out[11] = random.nextIntPow2Unchecked(2) != 0;
+    out[12] = random.nextIntPow2Unchecked(2) != 0;
+    out[13] = random.nextIntPow2Unchecked(2) != 0;
+    out[14] = random.nextIntPow2Unchecked(2) != 0;
+    out[15] = random.nextIntPow2Unchecked(2) != 0;
 }
 
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
@@ -36,11 +49,11 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
     bool leafPattern[16];
     int8_t foundTreeCount = 0;
     for (int i = 0; i <= maxTreeCount; ++i) {
-        int32_t treeX = random.nextInt(16);
-        int32_t treeZ = random.nextInt(16);
+        int32_t treeX = random.nextIntPow2Unchecked(16);
+        int32_t treeZ = random.nextIntPow2Unchecked(16);
         int32_t height = random.nextInt(3) + 4;
         if (!treesFound[0] && treeX == waterfallX + TREE1_X && treeZ == TREE1_Z && height == TREE1_HEIGHT) {
-            generator::ChunkGenerator::generateLeafPattern(random, leafPattern);
+            generateLeafPattern(random, leafPattern);
             foundTreeCount++;
             treesFound[0] = true;
         } else if (!treesFound[1] && treeX == waterfallX + TREE2_X && treeZ == TREE2_Z && height == TREE2_HEIGHT) {

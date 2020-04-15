@@ -16,8 +16,9 @@
 #endif
 
 
-
+#include <chrono>
 #include <stdint.h>
+#include <inttypes.h>
 #include <memory.h>
 #include <stdio.h>
 #include <time.h>
@@ -345,7 +346,7 @@ int main(int argc, char *argv[]) {
     generator::ChunkGenerator::init();
 
     GPU_Node *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
-    printf("Searching %I64d total seeds...\n", TOTAL_WORK_SIZE);
+    printf("Searching %13" PRIu64 " total seeds...\n", TOTAL_WORK_SIZE);
 
     calculate_search_backs();
 
@@ -357,8 +358,8 @@ int main(int argc, char *argv[]) {
 
 
     ulong count = 0;
-    clock_t lastIteration = clock();
-    clock_t startTime = clock();
+    auto lastIteration = std::chrono::system_clock::now();
+    auto startTime = std::chrono::system_clock::now();
     long long *tempStorage=NULL;
     ulong arraySize=0;
     for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
@@ -415,11 +416,12 @@ int main(int argc, char *argv[]) {
             arraySize += *nodes[gpu_index].num_seeds;
         }
 
-        double iterationTime = (double)(clock() - lastIteration) / CLOCKS_PER_SEC;
-        double timeElapsed = (double)(clock() - startTime) / CLOCKS_PER_SEC;
-        lastIteration = clock();
-        ulong numSearched = offset + WORK_UNIT_SIZE * GPU_COUNT - OFFSET;
-        double speed = numSearched / timeElapsed / 1000000;
+        auto iterFinish = std::chrono::system_clock::now();
+        std::chrono::duration<double> iterationTime = iterFinish - lastIteration;
+        std::chrono::duration<double> elapsedTime = iterFinish - startTime;
+        lastIteration = iterFinish;
+        uint64_t numSearched = offset + WORK_UNIT_SIZE * GPU_COUNT - OFFSET;
+        double speed = numSearched / elapsedTime.count() / 1000000;
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
         double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / speed / 1000000;
         char suffix = 's';
@@ -434,7 +436,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %lld seeds. Found: %I64d matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
+        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 " matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, elapsedTime.count(), speed, progress, estimatedTime, suffix);
 
     }
 

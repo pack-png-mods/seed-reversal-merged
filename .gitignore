@@ -11,3 +11,5 @@ CMakeFiles
 *.exp
 *.lib
 *.cmake
+program*
+*.zip
