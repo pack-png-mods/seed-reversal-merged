@@ -3,3 +3,4 @@ cmake-build-debug
 *.txt
 merged
 *.out
+/build

@@ -15,6 +15,20 @@
 #include <__clang_cuda_cmath.h>
 #endif
 
+// for windows plebs
+#ifdef __INTELLISENSE__
+
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
+#define __CUDACC__ //fixes function defenition in ide
+//void __syncthreads();
+
+#include <device_launch_parameters.h>
+#include <device_functions.h>
+#include <device_atomic_functions.h>
+
+#endif
 
 
 #include <stdint.h>
@@ -22,6 +36,11 @@
 #include <stdio.h>
 #include <time.h>
 #include <ctype.h>
+
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
 
 
 #define signed_seed_t int64_t
@@ -41,8 +60,8 @@
 #define RANDOM_SCALE 0x1p-48
 
 inline uint __host__ __device__  random_next(Random *random, int bits) {
-  *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
-  return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
+    *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
+    return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
 }
 
 #else
@@ -333,23 +352,28 @@ int main(int argc, char *argv[]) {
 
     FILE* out_file = fopen("chunk_seeds.txt", "w");
 
-    for(int i = 0; i < GPU_COUNT; i++) {
-        setup_gpu_node(&nodes[i],i);
+    for (int i = 0; i < GPU_COUNT; i++) {
+        setup_gpu_node(&nodes[i], i);
     }
 
+    std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
+    std::mutex fileMutex;
 
-    ulong count = 0;
+    std::atomic<ulong> count(0);
     clock_t lastIteration = clock();
     clock_t startTime = clock();
-    long long *tempStorage=NULL;
-    ulong arraySize=0;
+    long long* tempStorage = NULL;
+    ulong arraySize = 0;
+
+    printf("Using %d threads for cpu work\n", (int)threads.size());
+
     for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_tree_starts = 0;
-            doPreWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
+            doPreWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(offset, nodes[gpu_index].tree_starts, nodes[gpu_index].num_tree_starts);
             offset += WORK_UNIT_SIZE;
         }
 
@@ -362,28 +386,38 @@ int main(int argc, char *argv[]) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_seeds = 0;
-            doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
+            doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
-        for (int j = 0; j < arraySize; ++j) {
-            if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
-                fprintf(out_file, "%lld\n", tempStorage[j]);
-                count++;
+        static auto threadFunc = [&](size_t start, size_t end) {
+            for (int j = start; j < end; ++j) {
+                if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
+                    std::lock_guard<std::mutex> lock(fileMutex);
+                    fprintf(out_file, "%lld\n", tempStorage[j]);
+                    count++;
+                }
             }
-        }
+        };
+
+
+        int chunkSize = arraySize / threads.size();
+        for(size_t i = 0; i < threads.size(); i++)
+            threads[i] = std::thread(threadFunc, i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
+
+        for(std::thread& x : threads)
+            x.join();
 
         fflush(out_file);
         free(tempStorage);
 
-        tempStorage = (long long*) malloc( sizeof(long long));
-        arraySize=0;
+        tempStorage = (long long*)malloc(sizeof(long long));
+        arraySize = 0;
         for(int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
-            tempStorage=(long long*) realloc(tempStorage,(*nodes[gpu_index].num_seeds+arraySize)* sizeof(long long));
+            tempStorage = (long long*) realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
             for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
-                tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
+                tempStorage[arraySize + i] = nodes[gpu_index].seeds[i];
                 //fprintf(out_file, "%lld\n", nodes[gpu_index].seeds[i]);
             }
             //fflush(out_file);
@@ -401,7 +435,8 @@ int main(int argc, char *argv[]) {
         if (estimatedTime >= 3600) {
             suffix = 'h';
             estimatedTime /= 3600.0;
-        } else if (estimatedTime >= 60) {
+        }
+        else if (estimatedTime >= 60) {
             suffix = 'm';
             estimatedTime /= 60.0;
         }
@@ -409,8 +444,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %lld seeds. Found: %I64d matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
-
+        printf("Searched: %13lld seeds. Found: %13lld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count.load(), timeElapsed, speed, progress, estimatedTime, suffix);
     }
 
 
