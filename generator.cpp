@@ -43,6 +43,23 @@ void generator::ChunkGenerator::generateLeafPattern(random_math::JavaRand& rando
     out[15] = random.nextIntPow2Unchecked(2) != 0;
 }
 
+void generator::ChunkGenerator::ignoreLeafPattern(random_math::JavaRand& random)
+{
+    random.advance(advance_16);
+}
+
+bool generator::ChunkGenerator::leafPatternNot0And4(random_math::JavaRand& random)
+{
+    bool _0 = random.nextIntPow2Unchecked(2) != 0;
+    random.advance(advance_3);
+
+    bool _4 = random.nextIntPow2Unchecked(2) != 0;
+    random.advance(advance_11);
+
+
+    return !_0 && _4;
+}
+
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
 {
     bool treesFound[2] = {false, false};
@@ -53,12 +70,11 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
         int32_t treeZ = random.nextIntPow2Unchecked(16);
         int32_t height = random.nextInt(3) + 4;
         if (!treesFound[0] && treeX == waterfallX + TREE1_X && treeZ == TREE1_Z && height == TREE1_HEIGHT) {
-            generateLeafPattern(random, leafPattern);
+            ignoreLeafPattern(random);
             foundTreeCount++;
             treesFound[0] = true;
         } else if (!treesFound[1] && treeX == waterfallX + TREE2_X && treeZ == TREE2_Z && height == TREE2_HEIGHT) {
-            generateLeafPattern(random, leafPattern);
-            if (!leafPattern[0] && leafPattern[4]) {
+            if (leafPatternNot0And4(random)) {
                 foundTreeCount++;
                 treesFound[1] = true;
             } else {
@@ -76,7 +92,7 @@ int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int
 
 bool generator::ChunkGenerator::populate(int64_t chunkSeed, int waterfallX)
 {
-    random_math::JavaRand random(advance_3759.next(chunkSeed), false);
+    random_math::JavaRand random(advance_3759.nextMaskableUnchecked(chunkSeed), false);
 
     int32_t maxBaseTreeCount = 12;
     if (random.nextInt(10) == 0)
@@ -88,6 +104,12 @@ bool generator::ChunkGenerator::populate(int64_t chunkSeed, int waterfallX)
 
 void generator::ChunkGenerator::init()
 {
+    generator::ChunkGenerator::advance_3 = random_math::JavaRand::lcg.combine(3);
+    generator::ChunkGenerator::advance_11 = random_math::JavaRand::lcg.combine(11);
+    generator::ChunkGenerator::advance_16 = random_math::JavaRand::lcg.combine(16);
     generator::ChunkGenerator::advance_3759 = random_math::JavaRand::lcg.combine(3759);
 }
+random_math::LCG generator::ChunkGenerator::advance_3(1, 1, 1);
+random_math::LCG generator::ChunkGenerator::advance_11(1, 1, 1);
+random_math::LCG generator::ChunkGenerator::advance_16(1, 1, 1);
 random_math::LCG generator::ChunkGenerator::advance_3759(1, 1, 1);
