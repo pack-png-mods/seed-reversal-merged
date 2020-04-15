@@ -33,6 +33,7 @@ namespace random_math
         explicit JavaRand(long seed, bool scramble = true);
         uint64_t getSeed();
         void setSeed(int64_t seed, bool scramble = true);
+        void ignoreNext();
         uint32_t next(int32_t bits);
         uint32_t nextInt(int32_t bound);
         /* bound must be a positive power of 2 */

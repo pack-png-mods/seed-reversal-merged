@@ -70,6 +70,10 @@ void random_math::JavaRand::setSeed(int64_t seed, bool scramble)
     this->seed &= lcg.modulo - 1;
 }
 
+void random_math::JavaRand::ignoreNext() {
+    this->seed = lcg.nextMaskableUnchecked(this->seed);
+}
+
 uint32_t random_math::JavaRand::next(int32_t bits)
 {
     this->seed = lcg.nextMaskableUnchecked(this->seed);
