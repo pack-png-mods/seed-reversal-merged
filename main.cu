@@ -193,7 +193,7 @@ __constant__ ulong search_back_multipliers[MAX_TREE_SEARCH_BACK + 1];
 __constant__ ulong search_back_addends[MAX_TREE_SEARCH_BACK + 1];
 int search_back_count;
 
-#define WORK_UNIT_SIZE (1LL << 23)
+#define WORK_UNIT_SIZE (1LL << 25)
 #define BLOCK_SIZE 256
 
 __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
@@ -390,13 +390,28 @@ int main(int argc, char *argv[]) {
         }
 
         static auto threadFunc = [&](size_t start, size_t end) {
+#define WRITE_BUFFER_SIZE 2048
+#define MAX_NUMBER_LEN (21 + 1)
+            int myCount = 0;
+            char writeBuffer[2048];
+            char* writeBufCur = writeBuffer;
+#define WRITE_BUFFER_USED (writeBufCur - writeBuffer)
+
             for (int j = start; j < end; ++j) {
+                if (WRITE_BUFFER_USED + MAX_NUMBER_LEN >= WRITE_BUFFER_SIZE) {
+                    *writeBufCur++ = 0;
+                    do {
+                        std::lock_guard<std::mutex> lock(fileMutex);
+                        fprintf(out_file, "%s", writeBuffer);
+                    } while (0);
+                    writeBufCur = writeBuffer;
+                }
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
-                    std::lock_guard<std::mutex> lock(fileMutex);
-                    fprintf(out_file, "%lld\n", tempStorage[j]);
-                    count++;
+                    myCount++;
+                    snprintf(writeBufCur, MAX_NUMBER_LEN, "%lld\n", tempStorage[j]);
                 }
             }
+            count += myCount;
         };
 
 
