@@ -327,7 +327,7 @@ int main(int argc, char *argv[]) {
     generator::ChunkGenerator::init();
 
     GPU_Node *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
-    printf("Searching %ld total seeds...\n", TOTAL_WORK_SIZE);
+    printf("Searching %I64d total seeds...\n", TOTAL_WORK_SIZE);
 
     calculate_search_backs();
 
@@ -409,7 +409,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %lld seeds. Found: %ld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
+        printf("Searched: %lld seeds. Found: %I64d matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
 
     }
 
