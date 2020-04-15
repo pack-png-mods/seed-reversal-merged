@@ -1,6 +1,6 @@
 #ifndef SEED_TESTER_RANDOM_H
 #define SEED_TESTER_RANDOM_H
-
+#define ulong uint64_t
 #include <cstdint>
 #include <stdexcept>
 
