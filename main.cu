@@ -411,7 +411,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 "d matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, elapsedTime.count(), speed, progress, estimatedTime, suffix);
+        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 " matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, elapsedTime.count(), speed, progress, estimatedTime, suffix);
 
     }
 
