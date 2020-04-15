@@ -24,6 +24,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <future>
+#include <mutex>
 
 
 #define signed_seed_t int64_t
@@ -320,12 +321,14 @@ void calculate_search_backs() {
 #include "generator.h"
 
 #ifndef THREAD_COUNT
-#define THREAD_COUNT 2
+#define THREAD_COUNT 4
 #endif
 
 #ifndef OFFSET
 #define OFFSET 0
 #endif
+
+std::mutex fileMutex;
 
 // This function does most of the brute force work of filtering out chunk seeds.
 // It's also usually the bottleneck in the function
@@ -333,7 +336,9 @@ ulong filter(int start, int arraySize, long long* tempStorage, FILE* out_file) {
     ulong count = 0;
     for (int j = start; j < arraySize; ++j) {
         if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
+            fileMutex.lock();
             fprintf(out_file, "%lld\n", tempStorage[j]);
+            fileMutex.unlock();
             count++;
         }
     }
@@ -355,7 +360,6 @@ int main(int argc, char *argv[]) {
     for(int i = 0; i < GPU_COUNT; i++) {
         setup_gpu_node(&nodes[i],i);
     }
-
 
     ulong count = 0;
     auto lastIteration = std::chrono::system_clock::now();
@@ -386,9 +390,10 @@ int main(int argc, char *argv[]) {
 
         //initialize the futures here, to make each bit process a chunk of the array
         std::vector<std::future<ulong>> futures;
-        int amtPerThread = arraySize / THREAD_COUNT;
+        ulong amtPerThread = arraySize / THREAD_COUNT;
+        int addition = arraySize % THREAD_COUNT;
         for (int i = 0; i < THREAD_COUNT; i++) {
-            futures.push_back(std::async(filter, amtPerThread * i, amtPerThread, tempStorage, out_file));
+            futures.push_back(std::async(filter, amtPerThread * i, amtPerThread + (i == THREAD_COUNT - 1 ? addition : 0), tempStorage, out_file));
         }
 
 
