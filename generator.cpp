@@ -45,37 +45,17 @@ void generator::ChunkGenerator::generateLeafPattern(random_math::JavaRand& rando
 
 void generator::ChunkGenerator::ignoreLeafPattern(random_math::JavaRand& random)
 {
-    for (int i = 0; i < 4; i++) {
-        random.ignoreNext();
-        random.ignoreNext();
-        random.ignoreNext();
-        random.ignoreNext();
-    }
+    random.advance(advance_16);
 }
 
 bool generator::ChunkGenerator::leafPatternNot0And4(random_math::JavaRand& random)
 {
     bool _0 = random.nextIntPow2Unchecked(2) != 0;
-
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
+    random.advance(advance_3);
 
     bool _4 = random.nextIntPow2Unchecked(2) != 0;
+    random.advance(advance_11);
 
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
-
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
-
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
-    random.ignoreNext();
 
     return !_0 && _4;
 }
@@ -124,6 +104,12 @@ bool generator::ChunkGenerator::populate(int64_t chunkSeed, int waterfallX)
 
 void generator::ChunkGenerator::init()
 {
+    generator::ChunkGenerator::advance_3 = random_math::JavaRand::lcg.combine(3);
+    generator::ChunkGenerator::advance_11 = random_math::JavaRand::lcg.combine(11);
+    generator::ChunkGenerator::advance_16 = random_math::JavaRand::lcg.combine(16);
     generator::ChunkGenerator::advance_3759 = random_math::JavaRand::lcg.combine(3759);
 }
+random_math::LCG generator::ChunkGenerator::advance_3(1, 1, 1);
+random_math::LCG generator::ChunkGenerator::advance_11(1, 1, 1);
+random_math::LCG generator::ChunkGenerator::advance_16(1, 1, 1);
 random_math::LCG generator::ChunkGenerator::advance_3759(1, 1, 1);

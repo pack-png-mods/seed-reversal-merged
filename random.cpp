@@ -64,6 +64,11 @@ uint64_t random_math::JavaRand::getSeed()
     return this->seed;
 }
 
+void random_math::JavaRand::advance(random_math::LCG lcg) 
+{
+    this->seed = lcg.next(this->seed);
+}
+
 void random_math::JavaRand::setSeed(int64_t seed, bool scramble)
 {
     this->seed = seed ^ (scramble ? lcg.multiplier : 0ULL);
