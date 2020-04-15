@@ -12,6 +12,11 @@ int64_t random_math::LCG::next(int64_t seed)
     return (seed * this->multiplier + this->addend) % this->modulo;
 }
 
+int64_t random_math::LCG::nextMaskableUnchecked(int64_t seed)
+{
+    return (seed * this->multiplier + this->addend) & (this->modulo - 1);
+}
+
 random_math::LCG random_math::LCG::combine(int64_t steps)
 {
     int64_t mul = 1;
@@ -67,7 +72,7 @@ void random_math::JavaRand::setSeed(int64_t seed, bool scramble)
 
 uint32_t random_math::JavaRand::next(int32_t bits)
 {
-    this->seed = lcg.next(this->seed);
+    this->seed = lcg.nextMaskableUnchecked(this->seed);
     return (uint32_t) (((uint64_t)this->seed) >> (48 - bits));
 }
 

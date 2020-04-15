@@ -17,6 +17,7 @@ namespace random_math
         LCG(int64_t multiplier, int64_t addend, int64_t modulo, bool maskable = true);
 
         int64_t next(int64_t seed);
+        int64_t nextMaskableUnchecked(int64_t seed);
 
         LCG combine(int64_t steps);
 
