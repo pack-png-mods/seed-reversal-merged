@@ -409,7 +409,7 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %ld seeds. Found: %ld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
+        printf("Searched: %lld seeds. Found: %ld matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count, timeElapsed, speed, progress, estimatedTime, suffix);
 
     }
 
