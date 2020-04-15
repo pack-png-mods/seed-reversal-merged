@@ -405,14 +405,22 @@ int main(int argc, char *argv[]) {
                     do {
                         std::lock_guard<std::mutex> lock(fileMutex);
                         fprintf(out_file, "%s", writeBuffer);
+                        fflush(out_file);
                     } while (0);
                     writeBufCur = writeBuffer;
                 }
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
                     myCount++;
-                    snprintf(writeBufCur, MAX_NUMBER_LEN, "%lld\n", tempStorage[j]);
+                    writeBufCur += snprintf(writeBufCur, MAX_NUMBER_LEN, "%lld\n", tempStorage[j]);
                 }
             }
+
+            // Finish up - write remainder and update atomic
+            do {
+                std::lock_guard<std::mutex> lock(fileMutex);
+                fprintf(out_file, "%s", writeBuffer);
+                fflush(out_file);
+            } while (0);
             count += myCount;
         };
 
@@ -424,6 +432,7 @@ int main(int argc, char *argv[]) {
         for(std::thread& x : threads)
             x.join();
 
+        fflush(out_file);
         free(tempStorage);
 
         tempStorage = (long long*)malloc(sizeof(long long));
