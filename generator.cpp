@@ -26,21 +26,21 @@ bool generator::ChunkGenerator::isValidTreeSpot(int treeX, int treeZ, bool first
 void generator::ChunkGenerator::generateLeafPattern(random_math::JavaRand& random, bool *out)
 {
     out[0] = random.nextIntPow2Unchecked(2) != 0;
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
+    out[1] = random.nextIntPow2Unchecked(2) != 0;
+    out[2] = random.nextIntPow2Unchecked(2) != 0;
+    out[3] = random.nextIntPow2Unchecked(2) != 0;
     out[4] = random.nextIntPow2Unchecked(2) != 0;
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
-    random.nextIntPow2Unchecked(2);
+    out[5] = random.nextIntPow2Unchecked(2) != 0;
+    out[6] = random.nextIntPow2Unchecked(2) != 0;
+    out[7] = random.nextIntPow2Unchecked(2) != 0;
+    out[8] = random.nextIntPow2Unchecked(2) != 0;
+    out[9] = random.nextIntPow2Unchecked(2) != 0;
+    out[10] = random.nextIntPow2Unchecked(2) != 0;
+    out[11] = random.nextIntPow2Unchecked(2) != 0;
+    out[12] = random.nextIntPow2Unchecked(2) != 0;
+    out[13] = random.nextIntPow2Unchecked(2) != 0;
+    out[14] = random.nextIntPow2Unchecked(2) != 0;
+    out[15] = random.nextIntPow2Unchecked(2) != 0;
 }
 
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
