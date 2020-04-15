@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <ctype.h>
+#include <future>
 
 
 #define signed_seed_t int64_t
@@ -317,9 +318,26 @@ void calculate_search_backs() {
 #undef int
 #include "generator.h"
 
+#ifndef THREAD_COUNT
+#define THREAD_COUNT 2
+#endif
+
 #ifndef OFFSET
 #define OFFSET 0
 #endif
+
+// This function does most of the brute force work of filtering out chunk seeds.
+// It's also usually the bottleneck in the function
+ulong filter(int start, int arraySize, long long* tempStorage, FILE* out_file) {
+    ulong count = 0;
+    for (int j = start; j < arraySize; ++j) {
+        if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
+            fprintf(out_file, "%lld\n", tempStorage[j]);
+            count++;
+        }
+    }
+    return count;
+}
 
 int main(int argc, char *argv[]) {
 #define int int32_t
@@ -365,13 +383,20 @@ int main(int argc, char *argv[]) {
             doWork <<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>> (nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        // for now no multithreading here (will be needed but leave 4 cores for gpu), this loop only execute when arraysize is changed
-        for (int j = 0; j < arraySize; ++j) {
-            if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
-                fprintf(out_file, "%lld\n", tempStorage[j]);
-                count++;
-            }
+        //initialize the futures here, to make each bit process a chunk of the array
+        std::vector<std::future<ulong>> futures;
+        int amtPerThread = arraySize / THREAD_COUNT;
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            futures.push_back(std::async(filter, amtPerThread * i, amtPerThread, tempStorage, out_file));
         }
+
+
+        //this gets the value of each processed chunk and adds it to the total. While .get() blocks, it lets the other
+        //futures process in parallel so it will be faster overall.
+        for(auto & future : futures) {
+            count += future.get();
+        }
+
 
         fflush(out_file);
         free(tempStorage);

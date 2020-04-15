@@ -3,3 +3,11 @@ cmake-build-debug
 *.txt
 merged
 *.out
+*.cbp
+*.exe
+Makefile
+CMakeFiles
+*.manifest
+*.exp
+*.lib
+*.cmake
