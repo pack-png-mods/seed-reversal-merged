@@ -13,6 +13,7 @@ namespace generator
         static bool isValidTreeSpot(int treeX, int treeZ, bool firstTreeFound, bool secondTreeFound, int waterfallX);
         static void generateLeafPattern(random_math::JavaRand& random, bool *out);
         static void ignoreLeafPattern(random_math::JavaRand& random);
+        /* When false is returned, the RNG will be in an invalid state */
         static bool leafPatternNot0And4(random_math::JavaRand& random);
         static int32_t checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX);
     public:

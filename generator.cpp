@@ -50,14 +50,18 @@ void generator::ChunkGenerator::ignoreLeafPattern(random_math::JavaRand& random)
 
 bool generator::ChunkGenerator::leafPatternNot0And4(random_math::JavaRand& random)
 {
-    bool _0 = random.nextIntPow2Unchecked(2) != 0;
+    if (random.nextIntPow2Unchecked(2) != 0) {
+        return false;
+    }
+    
     random.advance(advance_3);
 
-    bool _4 = random.nextIntPow2Unchecked(2) != 0;
-    random.advance(advance_11);
+    if (random.nextIntPow2Unchecked(2)) {
+        random.advance(advance_11);
+        return true;
+    }
 
-
-    return !_0 && _4;
+    return false;
 }
 
 int32_t generator::ChunkGenerator::checkTrees(random_math::JavaRand& random, int32_t maxTreeCount, int waterfallX)
