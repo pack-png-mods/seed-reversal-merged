@@ -1,9 +1,10 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "hicpp-signed-bitwise"
 //#define __JETBRAINS_IDE__
 // IDE indexing
 #ifdef __JETBRAINS_IDE__
 #define __host__
 #define __device__
-#define __shared__
 #define __constant__
 #define __global__
 #define __CUDACC__
@@ -15,7 +16,6 @@
 #include <__clang_cuda_cmath.h>
 #endif
 
-// for windows plebs
 #ifdef __INTELLISENSE__
 
 #include <cuda.h>
@@ -31,87 +31,48 @@
 #endif
 
 #include <chrono>
-#include <stdint.h>
-#include <inttypes.h>
-#include <memory.h>
-#include <stdio.h>
-#include <time.h>
-#include <ctype.h>
-#include <sstream>
-
+#include <cstdint>
 #include <thread>
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <iostream>
+#include <iomanip>
 
+#include "generator.h"
 
-#define signed_seed_t int64_t
-#define uint uint32_t
-#define ulong uint64_t
-// let's be EVIL (and make sure all includes come before this)
-#define int int32_t
-
-#undef JRAND_DOUBLE
+#define WRITE_BUFFER_SIZE 2048
+#define MAX_NUMBER_LEN (21 + 1)
+#define WRITE_BUFFER_USED (writeBufCur - writeBuffer)
 
 #define RANDOM_MULTIPLIER_LONG 0x5DEECE66DULL
 
-#ifdef JRAND_DOUBLE
-#define Random double
-#define RANDOM_MULTIPLIER 0x5DEECE66Dp-48
-#define RANDOM_ADDEND 0xBp-48
-#define RANDOM_SCALE 0x1p-48
-
-inline uint __host__ __device__  random_next(Random *random, int bits) {
-    *random = trunc((*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) * RANDOM_SCALE);
-    return (uint)((ulong)(*random / RANDOM_SCALE) >> (48 - bits));
-}
-
-#else
-
-#define Random ulong
+#define Random uint64_t
 #define RANDOM_MULTIPLIER RANDOM_MULTIPLIER_LONG
 #define RANDOM_ADDEND 0xBULL
 #define RANDOM_MASK (1ULL << 48) - 1
-#define RANDOM_SCALE 1
-
-#define FAST_NEXT_INT
 
 // Random::next(bits)
-__host__ __device__ inline uint random_next(Random *random, int bits) {
+__host__ __device__ inline uint32_t random_next(Random *random, int32_t bits) {
     *random = (*random * RANDOM_MULTIPLIER + RANDOM_ADDEND) & RANDOM_MASK;
-    return (uint)(*random >> (48 - bits));
+    return (uint32_t)(*random >> (48 - bits));
 }
-#endif // ~JRAND_DOUBLE
-
-// new Random(seed)
-#define get_random(seed) ((Random)((seed ^ RANDOM_MULTIPLIER_LONG) & RANDOM_MASK))
-#define get_random_unseeded(state) ((Random) ((state) * RANDOM_SCALE))
 
 // Random::nextInt(bound)
-__host__ __device__ inline uint random_next_int(Random *random, uint bound) {
-    int r = random_next(random, 31);
-    int m = bound - 1;
+__host__ __device__ inline uint32_t random_next_int(Random *random, uint32_t bound) {
+    int32_t r = random_next(random, 31);
+    int32_t m = bound - 1;
     if ((bound & m) == 0) {
         // Could probably use __mul64hi here
-        r = (uint)((bound * (ulong)r) >> 31);
+        r = (uint32_t)((bound * (uint64_t)r) >> 31);
     } else {
-#ifdef FAST_NEXT_INT
         r %= bound;
-#else
-        for (int u = r;
-            u - (r = u % bound) + m < 0;
-            u = random_next(random, 31));
-#endif
     }
     return r;
 }
 
-__host__ __device__ inline int64_t random_next_long(Random *random) {
-    return (((int64_t)random_next(random, 32)) << 32) + random_next(random, 32);
-}
-
 #define CHECK_GPU_ERR(code) gpuAssert((code), __FILE__, __LINE__)
-inline void gpuAssert(cudaError_t code, const char* file, int line) {
+inline void gpuAssert(cudaError_t code, const char* file, int32_t line) {
     if (code != cudaSuccess) {
         fprintf(stderr, "GPUassert: %s (code %d) %s %d\n", cudaGetErrorString(code), code, file, line);
         exit(code);
@@ -120,9 +81,6 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 
 // advance
 #define advance_rng(rand, multiplier, addend) ((rand) = ((rand) * (multiplier) + (addend)) & RANDOM_MASK)
-#define advance_830(rand) advance_rng(rand, 0x859D39E832D9LL, 0xE3E2DF5E9196LL)
-#define advance_774(rand) advance_rng(rand, 0xF8D900133F9LL, 0x5738CAC2F85ELL)
-#define advance_387(rand) advance_rng(rand, 0x5FE2BCEF32B5LL, 0xB072B3BF0CBDLL)
 #define advance_16(rand) advance_rng(rand, 0x6DC260740241LL, 0xD0352014D90LL)
 #define advance_m1(rand) advance_rng(rand, 0xDFE05BCB1365LL, 0x615C0E462AA9LL)
 #define advance_m3759(rand) advance_rng(rand, 0x63A9985BE4ADLL, 0xA9AA8DA9BC9BLL)
@@ -130,7 +88,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 
 
 #define WATERFALL_X 16
-#define WATERFALL_Y 76
+//#define WATERFALL_Y 76
 #define WATERFALL_Z 10
 
 #define TREE_X (WATERFALL_X - 5)
@@ -138,7 +96,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 #define TREE_HEIGHT 5
 
 #define OTHER_TREE_COUNT 1
-__device__ inline int getTreeHeight(int x, int z) {
+__device__ inline int32_t getTreeHeight(int32_t x, int32_t z) {
     if (x == TREE_X && z == TREE_Z)
         return TREE_HEIGHT;
 
@@ -151,13 +109,9 @@ __device__ inline int getTreeHeight(int x, int z) {
 
 
 #define MODULUS (1LL << 48)
-#define SQUARE_SIDE (MODULUS / 16)
 #define X_TRANSLATE 0
-#define Z_TRANSLATE 11
 #define L00 7847617LL
 #define L01 (-18218081LL)
-#define L10 4824621LL
-#define L11 24667315LL
 #define LI00 (24667315.0 / 16)
 #define LI01 (18218081.0 / 16)
 #define LI10 (-4824621.0 / 16)
@@ -167,10 +121,8 @@ __device__ inline int getTreeHeight(int x, int z) {
 #define CONST_MIN4(a, b, c, d) CONST_MIN(CONST_MIN(a, b), CONST_MIN(c, d))
 #define CONST_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define CONST_MAX4(a, b, c, d) CONST_MAX(CONST_MAX(a, b), CONST_MAX(c, d))
-#define CONST_FLOOR(x) ((x) < (signed_seed_t) (x) ? (signed_seed_t) (x) - 1 : (signed_seed_t) (x))
-#define CONST_CEIL(x) ((x) == (signed_seed_t) (x) ? (signed_seed_t) (x) : CONST_FLOOR((x) + 1))
-#define CONST_LOWER(x, m, c) ((m) < 0 ? ((x) + 1 - (double) (c) / MODULUS) * (m) : ((x) - (double) (c) / MODULUS) * (m))
-#define CONST_UPPER(x, m, c) ((m) < 0 ? ((x) - (double) (c) / MODULUS) * (m) : ((x) + 1 - (double) (c) / MODULUS) * (m))
+#define CONST_FLOOR(x) ((x) < (int64_t) (x) ? (int64_t) (x) - 1 : (int64_t) (x))
+#define CONST_CEIL(x) ((x) == (int64_t) (x) ? (int64_t) (x) : CONST_FLOOR((x) + 1))
 
 // for a parallelogram ABCD https://media.discordapp.net/attachments/668607204009574411/671018577561649163/unknown.png
 #define B_X LI00
@@ -191,28 +143,28 @@ __device__ inline int getTreeHeight(int x, int z) {
 #define MAX_TREE_ATTEMPTS 12
 #define MAX_TREE_SEARCH_BACK (3 * MAX_TREE_ATTEMPTS - 3 + 16 * OTHER_TREE_COUNT)
 
-__constant__ ulong search_back_multipliers[MAX_TREE_SEARCH_BACK + 1];
-__constant__ ulong search_back_addends[MAX_TREE_SEARCH_BACK + 1];
-int search_back_count;
+__constant__ uint64_t search_back_multipliers[MAX_TREE_SEARCH_BACK + 1];
+__constant__ uint64_t search_back_addends[MAX_TREE_SEARCH_BACK + 1];
+int32_t search_back_count;
 
 #define WORK_UNIT_SIZE (1LL << 25)
 #define BLOCK_SIZE 256
 
-__global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
+__global__ void doPreWork(uint64_t offset, Random* starts, int* num_starts) {
     // lattice tree position
-    ulong global_id = blockIdx.x * blockDim.x + threadIdx.x;
+    uint64_t global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
-    signed_seed_t lattice_x = (signed_seed_t) ((offset + global_id) % SIZE_X) + LOWER_X;
-    signed_seed_t lattice_z = (signed_seed_t) ((offset + global_id) / SIZE_X) + LOWER_Z;
+    int64_t lattice_x = (int64_t) ((offset + global_id) % SIZE_X) + LOWER_X;
+    int64_t lattice_z = (int64_t) ((offset + global_id) / SIZE_X) + LOWER_Z;
     lattice_z += (B_X * lattice_z < B_Z * lattice_x) * SIZE_Z;
     if (D_X * lattice_z > D_Z * lattice_x) {
         lattice_x += B_X;
         lattice_z += B_Z;
     }
-    lattice_x += (signed_seed_t) (TREE_X * LI00 + TREE_Z * LI01);
-    lattice_z += (signed_seed_t) (TREE_X * LI10 + TREE_Z * LI11);
+    lattice_x += (int64_t) (TREE_X * LI00 + TREE_Z * LI01);
+    lattice_z += (int64_t) (TREE_X * LI10 + TREE_Z * LI11);
 
-    Random rand = (Random)((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
+    auto rand = (Random)((lattice_x * L00 + lattice_z * L01 + X_TRANSLATE) % MODULUS);
     advance_m1(rand);
 
     Random tree_start = rand;
@@ -220,7 +172,7 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
 
     bool res = random_next(&rand, 4) == TREE_X;
     res &= random_next(&rand, 4) == TREE_Z;
-    res &= random_next_int(&rand, 3) == (ulong) (TREE_HEIGHT - 4);
+    res &= random_next_int(&rand, 3) == (uint64_t) (TREE_HEIGHT - 4);
 
     if (res) {
         int index = atomicAdd(num_starts, 1);
@@ -228,11 +180,11 @@ __global__ void doPreWork(ulong offset, Random* starts, int* num_starts) {
     }
 }
 
-__global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulong* seeds, int gpu_search_back_count) {
-    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x) {
+__global__ void doWork(const int32_t* num_starts, const Random* tree_starts, int32_t* num_seeds, uint64_t* seeds, int32_t gpu_search_back_count) {
+    for (int32_t i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_starts; i += blockDim.x * gridDim.x) {
         Random tree_start = tree_starts[i];
 
-        for (int treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++) {
+        for (int32_t treeBackCalls = 0; treeBackCalls <= gpu_search_back_count; treeBackCalls++) {
             Random start = (tree_start * search_back_multipliers[treeBackCalls] + search_back_addends[treeBackCalls]) & RANDOM_MASK;
             Random rand = start;
 
@@ -241,18 +193,18 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
             if (random_next_int(&rand, 10) == 0)
                 continue;
 
-            int generated_tree[16];
+            int32_t generated_tree[16];
             memset(generated_tree, 0x00, sizeof(generated_tree));
 
-            int treesMatched = 0;
-            for (int treeAttempt = 0; treeAttempt <= MAX_TREE_ATTEMPTS; treeAttempt++) {
-                int treeX = random_next(&rand, 4);
-                int treeZ = random_next(&rand, 4);
-                int wantedTreeHeight = getTreeHeight(treeX, treeZ);
-                int treeHeight = random_next_int(&rand, 3) + 4;
+            int32_t treesMatched = 0;
+            for (int32_t treeAttempt = 0; treeAttempt <= MAX_TREE_ATTEMPTS; treeAttempt++) {
+                int32_t treeX = random_next(&rand, 4);
+                int32_t treeZ = random_next(&rand, 4);
+                int32_t wantedTreeHeight = getTreeHeight(treeX, treeZ);
+                int32_t treeHeight = random_next_int(&rand, 3) + 4;
 
-                int& boolpack = generated_tree[treeX];
-                const int mask = 1 << (treeZ % 16);
+                int32_t& boolpack = generated_tree[treeX];
+                const int32_t mask = 1 << (treeZ % 16);
 
                 if (treeHeight == wantedTreeHeight && !(boolpack & mask)) {
                     treesMatched++;
@@ -267,7 +219,7 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
                 Random start_chunk_rand = start;
                 advance_m3759(start_chunk_rand);
 
-                int index = atomicAdd(num_seeds, 1);
+                int32_t index = atomicAdd(num_seeds, 1);
                 seeds[index] = start_chunk_rand;
             }
 
@@ -277,16 +229,14 @@ __global__ void doWork(int* num_starts, Random* tree_starts, int* num_seeds, ulo
 }
 
 struct GPU_Node {
-    int GPU;
-    int* num_seeds;
-    ulong* seeds;
-    int* num_tree_starts;
+    int32_t* num_seeds;
+    uint64_t* seeds;
+    int32_t* num_tree_starts;
     Random* tree_starts;
 };
 
-void setup_gpu_node(GPU_Node* node, int gpu) {
+void setup_gpu_node(GPU_Node* node, int32_t gpu) {
     CHECK_GPU_ERR(cudaSetDevice(gpu));
-    node->GPU = gpu;
     CHECK_GPU_ERR(cudaMallocManaged(&node->num_seeds, sizeof(*node->num_seeds)));
     CHECK_GPU_ERR(cudaMallocManaged(&node->seeds, (sizeof(Random)*WORK_UNIT_SIZE)));
     CHECK_GPU_ERR(cudaMallocManaged(&node->num_tree_starts, sizeof(*node->num_tree_starts)));
@@ -302,25 +252,25 @@ void calculate_search_backs() {
     bool allow_search_back[MAX_TREE_SEARCH_BACK + 1];
     memset(allow_search_back, false, sizeof(allow_search_back));
 
-    for (int i = 0; i <= MAX_TREE_ATTEMPTS - OTHER_TREE_COUNT - 1; i++) {
+    for (int32_t i = 0; i <= MAX_TREE_ATTEMPTS - OTHER_TREE_COUNT - 1; i++) {
         allow_search_back[i * 3] = true;
     }
 
-    for (int tree = 0; tree < OTHER_TREE_COUNT; tree++) {
-        for (int i = 0; i <= MAX_TREE_SEARCH_BACK - 19; i++) {
+    for (int32_t tree = 0; tree < OTHER_TREE_COUNT; tree++) {
+        for (int32_t i = 0; i <= MAX_TREE_SEARCH_BACK - 19; i++) {
             if (allow_search_back[i])
                 allow_search_back[i + 19] = true;
         }
     }
 
     search_back_count = 0;
-    ulong multiplier = 1;
-    ulong addend = 0;
-    ulong multipliers[MAX_TREE_SEARCH_BACK + 1];
-    ulong addends[MAX_TREE_SEARCH_BACK + 1];
-    for (int i = 0; i <= MAX_TREE_SEARCH_BACK; i++) {
+    uint64_t multiplier = 1;
+    uint64_t addend = 0;
+    uint64_t multipliers[MAX_TREE_SEARCH_BACK + 1];
+    uint64_t addends[MAX_TREE_SEARCH_BACK + 1];
+    for (int32_t i = 0; i <= MAX_TREE_SEARCH_BACK; i++) {
         if (allow_search_back[i]) {
-            int index = search_back_count++;
+            int32_t index = search_back_count++;
             multipliers[index] = multiplier;
             addends[index] = addend;
         }
@@ -328,50 +278,46 @@ void calculate_search_backs() {
         addend = (0xDFE05BCB1365LL * addend + 0x615C0E462AA9LL) & RANDOM_MASK;
     }
 
-    for (int gpu = 0; gpu < GPU_COUNT; gpu++) {
+    for (int32_t gpu = 0; gpu < GPU_COUNT; gpu++) {
         CHECK_GPU_ERR(cudaSetDevice(gpu));
         CHECK_GPU_ERR(cudaMemcpyToSymbol(search_back_multipliers, &multipliers, search_back_count * sizeof(*multipliers)));
         CHECK_GPU_ERR(cudaMemcpyToSymbol(search_back_addends, &addends, search_back_count * sizeof(*addends)));
     }
 }
 
-#undef int
-#include "generator.h"
-
 #ifndef OFFSET
 #define OFFSET 0
 #endif
 
 int main(int argc, char *argv[]) {
-#define int int32_t
     random_math::JavaRand::init();
     generator::ChunkGenerator::init();
 
-    GPU_Node *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
-    printf("Searching %13" PRIu64 " total seeds...\n", TOTAL_WORK_SIZE);
+    auto *nodes = (GPU_Node*)malloc(sizeof(GPU_Node) * GPU_COUNT);
+    std::cout << "Searching " << TOTAL_WORK_SIZE << " total seeds...\n";
 
     calculate_search_backs();
 
-    FILE* out_file = fopen("chunk_seeds_last.txt", "w");
+    FILE* out_file = fopen("chunk_seeds.txt", "w");
 
-    for (int i = 0; i < GPU_COUNT; i++) {
+    for (int32_t i = 0; i < GPU_COUNT; i++) {
         setup_gpu_node(&nodes[i], i);
     }
 
     std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
     std::mutex fileMutex;
 
-    std::atomic<ulong> count(0);
+    std::atomic<uint64_t> count(0);
     auto lastIteration = std::chrono::system_clock::now();
     auto startTime = std::chrono::system_clock::now();
-    long long* tempStorage = NULL;
-    ulong arraySize = 0;
+    long long* tempStorage = nullptr;
+    uint64_t arraySize = 0;
 
-    printf("Using %d threads for cpu work\n", (int)threads.size());
+    std::cout << "Using " << threads.size() << " threads for cpu work\n";
 
-    for (ulong offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
+    for (uint64_t offset = OFFSET; offset < TOTAL_WORK_SIZE;) {
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int32_t gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_tree_starts = 0;
@@ -379,12 +325,12 @@ int main(int argc, char *argv[]) {
             offset += WORK_UNIT_SIZE;
         }
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int32_t gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
         }
 
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int32_t gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
 
             *nodes[gpu_index].num_seeds = 0;
@@ -392,21 +338,18 @@ int main(int argc, char *argv[]) {
         }
 
         static auto threadFunc = [&](size_t start, size_t end) {
-#define WRITE_BUFFER_SIZE 2048
-#define MAX_NUMBER_LEN (21 + 1)
-            int myCount = 0;
+            int32_t myCount = 0;
             char writeBuffer[2048];
             char* writeBufCur = writeBuffer;
-#define WRITE_BUFFER_USED (writeBufCur - writeBuffer)
 
-            for (int j = start; j < end; ++j) {
+            for (int32_t j = start; j < end; ++j) {
                 if (WRITE_BUFFER_USED + MAX_NUMBER_LEN >= WRITE_BUFFER_SIZE) {
                     *writeBufCur++ = 0;
-                    do {
+                    {
                         std::lock_guard<std::mutex> lock(fileMutex);
                         fprintf(out_file, "%s", writeBuffer);
                         fflush(out_file);
-                    } while (0);
+                    }
                     writeBufCur = writeBuffer;
                 }
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
@@ -416,16 +359,16 @@ int main(int argc, char *argv[]) {
             }
 
             // Finish up - write remainder and update atomic
-            do {
+            {
                 std::lock_guard<std::mutex> lock(fileMutex);
                 fprintf(out_file, "%s", writeBuffer);
                 fflush(out_file);
-            } while (0);
+            }
             count += myCount;
         };
 
 
-        int chunkSize = arraySize / threads.size();
+        int32_t chunkSize = arraySize / threads.size();
         for(size_t i = 0; i < threads.size(); i++)
             threads[i] = std::thread(threadFunc, i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
 
@@ -437,11 +380,11 @@ int main(int argc, char *argv[]) {
 
         tempStorage = (long long*)malloc(sizeof(long long));
         arraySize = 0;
-        for (int gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
+        for (int32_t gpu_index = 0; gpu_index < GPU_COUNT; gpu_index++) {
             CHECK_GPU_ERR(cudaSetDevice(gpu_index));
             CHECK_GPU_ERR(cudaDeviceSynchronize());
             tempStorage = (long long*) realloc(tempStorage, (*nodes[gpu_index].num_seeds + arraySize) * sizeof(long long));
-            for (int i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
+            for (int32_t i = 0, e = *nodes[gpu_index].num_seeds; i < e; i++) {
                 tempStorage[arraySize+i]=nodes[gpu_index].seeds[i];
             }
             arraySize += *nodes[gpu_index].num_seeds;
@@ -455,7 +398,7 @@ int main(int argc, char *argv[]) {
         double speed = numSearched / elapsedTime.count() / 1000000;
         double progress = (double)numSearched / (double)TOTAL_WORK_SIZE * 100.0;
         double estimatedTime = (double)(TOTAL_WORK_SIZE - numSearched) / speed / 1000000;
-        ulong curCount = count;
+        uint64_t curCount = count;
         char suffix = 's';
         if (estimatedTime >= 3600) {
             suffix = 'h';
@@ -468,12 +411,14 @@ int main(int argc, char *argv[]) {
             estimatedTime = 0.0;
             suffix = 's';
         }
-        printf("Searched: %13" PRIu64 " seeds. Found: %13" PRIu64 " matches. Uptime: %.1fs. Speed: %.2fm seeds/s. Completion: %.3f%%. ETA: %.1f%c.\n", numSearched, count.load(), elapsedTime.count(), speed, progress, estimatedTime, suffix);
-
+        std::cout << "Searched: " << std::setw(13) << numSearched << " seeds. Found: " << std::setw(13) << count.load() << " matches. Uptime: " <<
+                std::fixed << std::setprecision(1) << elapsedTime.count() << "s. Speed: " << std::fixed <<
+                std::setprecision(2) << speed << "m seeds/s. Completion: " << std::setprecision(2) << progress <<
+                "%. ETA: " << std::fixed << std::setprecision(2) << estimatedTime << suffix << ".\n";
     }
 
     // Last batch to do
-    for (int j = 0; j < arraySize; ++j) {
+    for (int32_t j = 0; j < arraySize; ++j) {
         if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
             fprintf(out_file, "%lld\n", tempStorage[j]);
             count++;
