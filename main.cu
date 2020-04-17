@@ -340,6 +340,11 @@ void calculate_search_backs() {
 #define OFFSET 0
 #endif
 
+struct Thread {
+    std::vector<long long> threadStorage;
+    std::thread thread;
+};
+
 int main(int argc, char* argv[]) {
 #define int int32_t
     random_math::JavaRand::init();
@@ -356,8 +361,8 @@ int main(int argc, char* argv[]) {
         setup_gpu_node(&nodes[i], i);
     }
 
-    std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
-    std::mutex fileMutex;
+
+    std::vector<Thread> threads(std::thread::hardware_concurrency() - 4);
 
     std::atomic<ulong> count(0);
     clock_t lastIteration = clock();
@@ -389,11 +394,10 @@ int main(int argc, char* argv[]) {
             doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        static auto threadFunc = [&](size_t start, size_t end) {
+        static auto threadFunc = [&](Thread& myThread, size_t start, size_t end) {
             for (int j = start; j < end; ++j) {
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
-                    std::lock_guard<std::mutex> lock(fileMutex);
-                    fprintf(out_file, "%lld\n", tempStorage[j]);
+                    myThread.threadStorage.push_back(tempStorage[j]);
                     count++;
                 }
             }
@@ -402,10 +406,16 @@ int main(int argc, char* argv[]) {
 
         int chunkSize = arraySize / threads.size();
         for(size_t i = 0; i < threads.size(); i++)
-            threads[i] = std::thread(threadFunc, i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
+            threads[i].thread = std::thread(threadFunc, std::ref(threads[i]), i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
 
-        for(std::thread& x : threads)
-            x.join();
+        for(Thread& x : threads)
+        {
+            x.thread.join();
+            for(long long &val: x.threadStorage) {
+                fprintf(out_file, "%lld\n", val);
+            }
+            x.threadStorage.clear();
+        }
 
         fflush(out_file);
         free(tempStorage);

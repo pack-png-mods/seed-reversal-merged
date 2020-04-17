@@ -4,3 +4,8 @@ cmake-build-debug
 merged
 *.out
 /build
+/cmake-build-*
+/CMakeFiles
+Makefile
+*.cmake
+*.cbp
