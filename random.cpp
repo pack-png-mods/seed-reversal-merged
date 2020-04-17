@@ -12,6 +12,11 @@ int64_t random_math::LCG::next(int64_t seed)
     return (seed * this->multiplier + this->addend) % this->modulo;
 }
 
+int64_t random_math::LCG::nextMaskableUnchecked(int64_t seed)
+{
+    return (seed * this->multiplier + this->addend) & (this->modulo - 1);
+}
+
 random_math::LCG random_math::LCG::combine(int64_t steps)
 {
     int64_t mul = 1;
@@ -59,22 +64,31 @@ uint64_t random_math::JavaRand::getSeed()
     return this->seed;
 }
 
+void random_math::JavaRand::advance(random_math::LCG lcg)
+{
+    this->seed = lcg.next(this->seed);
+}
+
 void random_math::JavaRand::setSeed(int64_t seed, bool scramble)
 {
     this->seed = seed ^ (scramble ? lcg.multiplier : 0ULL);
     this->seed &= lcg.modulo - 1;
 }
 
+void random_math::JavaRand::ignoreNext() {
+    this->seed = lcg.nextMaskableUnchecked(this->seed);
+}
+
 uint32_t random_math::JavaRand::next(int32_t bits)
 {
-    this->seed = lcg.next(this->seed);
+    this->seed = lcg.nextMaskableUnchecked(this->seed);
     return (uint32_t) (((uint64_t)this->seed) >> (48 - bits));
 }
 
 uint32_t random_math::JavaRand::nextInt(int32_t bound)
 {
     if (bound <= 0) {
-        throw std::invalid_argument("Bound must be positive");
+	    abort();
     }
 
     if ((bound & -bound) == bound) {
@@ -88,4 +102,8 @@ uint32_t random_math::JavaRand::nextInt(int32_t bound)
         value = bits % bound;
     } while (bits - value + (bound - 1) < 0);
     return value;
+}
+
+uint32_t random_math::JavaRand::nextIntPow2Unchecked(int32_t bound) {
+    return (int32_t) ((bound * (int64_t) this->next(31)) >> 31);
 }
