@@ -34,16 +34,11 @@
 #include <cstdint>
 #include <thread>
 #include <vector>
-#include <mutex>
 #include <atomic>
 #include <iostream>
 #include <iomanip>
 
 #include "generator.h"
-
-#define WRITE_BUFFER_SIZE 2048
-#define MAX_NUMBER_LEN (21 + 1)
-#define WRITE_BUFFER_USED (writeBufCur - writeBuffer)
 
 #define RANDOM_MULTIPLIER_LONG 0x5DEECE66DULL
 
@@ -289,6 +284,11 @@ void calculate_search_backs() {
 #define OFFSET 0
 #endif
 
+struct Thread {
+    std::thread thread;
+    std::vector<long long> threadBuffer;
+};
+
 int main(int argc, char *argv[]) {
     random_math::JavaRand::init();
     generator::ChunkGenerator::init();
@@ -304,8 +304,7 @@ int main(int argc, char *argv[]) {
         setup_gpu_node(&nodes[i], i);
     }
 
-    std::vector<std::thread> threads(std::thread::hardware_concurrency() - 4);
-    std::mutex fileMutex;
+    std::vector<Thread> threads(std::thread::hardware_concurrency() - 4);
 
     std::atomic<uint64_t> count(0);
     auto lastIteration = std::chrono::system_clock::now();
@@ -337,43 +336,27 @@ int main(int argc, char *argv[]) {
             doWork<<<WORK_UNIT_SIZE / BLOCK_SIZE, BLOCK_SIZE>>>(nodes[gpu_index].num_tree_starts, nodes[gpu_index].tree_starts, nodes[gpu_index].num_seeds, nodes[gpu_index].seeds, search_back_count);
         }
 
-        static auto threadFunc = [&](size_t start, size_t end) {
-            int32_t myCount = 0;
-            char writeBuffer[2048];
-            char* writeBufCur = writeBuffer;
-
+        static auto threadFunc = [&](Thread &myThread, size_t start, size_t end) {
             for (int32_t j = start; j < end; ++j) {
-                if (WRITE_BUFFER_USED + MAX_NUMBER_LEN >= WRITE_BUFFER_SIZE) {
-                    *writeBufCur++ = 0;
-                    {
-                        std::lock_guard<std::mutex> lock(fileMutex);
-                        fprintf(out_file, "%s", writeBuffer);
-                        fflush(out_file);
-                    }
-                    writeBufCur = writeBuffer;
-                }
                 if (generator::ChunkGenerator::populate(tempStorage[j], X_TRANSLATE + 16)) {
-                    myCount++;
-                    writeBufCur += snprintf(writeBufCur, MAX_NUMBER_LEN, "%lld\n", tempStorage[j]);
+                    myThread.threadBuffer.push_back(tempStorage[j]);
+                    count++;
                 }
             }
-
-            // Finish up - write remainder and update atomic
-            {
-                std::lock_guard<std::mutex> lock(fileMutex);
-                fprintf(out_file, "%s", writeBuffer);
-                fflush(out_file);
-            }
-            count += myCount;
         };
 
 
         int32_t chunkSize = arraySize / threads.size();
         for(size_t i = 0; i < threads.size(); i++)
-            threads[i] = std::thread(threadFunc, i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
+            threads[i].thread = std::thread(threadFunc, std::ref(threads[i]), i * chunkSize, (i == (threads.size() - 1)) ? arraySize : ((i + 1) * chunkSize));
 
-        for(std::thread& x : threads)
-            x.join();
+        for(Thread& x : threads) {
+            x.thread.join();
+
+            for(const long long &val: x.threadBuffer)
+                fprintf(out_file, "%lld\n", val);
+            x.threadBuffer.clear();
+        }
 
         fflush(out_file);
         free(tempStorage);
